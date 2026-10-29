@@ -1,8 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, ShieldCheck, ArrowRight, Zap, CheckCircle2 } from 'lucide-react'
 import { Logo } from '@/components/jeralpos/brand'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { Button } from '@/components/jeralpos/button'
 import { Input, Label, FieldHint } from '@/components/jeralpos/input'
 import { cn } from '@/lib/utils'
@@ -35,96 +36,121 @@ export function LoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
         setLoading(false)
         setError('Credenciales incorrectas. Usa las de demostración.')
       }
-    }, 700)
+    }, 600)
+  }
+
+  function fillDemo() {
+    setEmail(DEMO_EMAIL)
+    setPassword(DEMO_PASSWORD)
+    setError(null)
   }
 
   return (
     <main className="grid min-h-dvh grid-cols-1 bg-background lg:grid-cols-[1.1fr_1fr]">
-      {/* Brand / marketing panel */}
-      <section className="relative hidden overflow-hidden bg-gradient-to-br from-navy via-navy to-electric p-12 text-white lg:flex lg:flex-col lg:justify-between">
+      {/* Brand / marketing panel - Minimalist Dark Luxury */}
+      <section className="relative hidden overflow-hidden bg-zinc-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        {/* Subtle mesh background effect */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.15]"
+          className="pointer-events-none absolute inset-0 opacity-20"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 20% 20%, white 1px, transparent 1px), radial-gradient(circle at 80% 60%, white 1px, transparent 1px)',
-            backgroundSize: '48px 48px, 64px 64px',
+              'radial-gradient(circle at 15% 20%, oklch(0.48 0.16 260 / 0.5) 0%, transparent 40%), radial-gradient(circle at 85% 75%, oklch(0.6 0.14 152 / 0.3) 0%, transparent 40%)',
           }}
         />
-        <div className="relative">
-          <Logo size="lg" className="[&_span.text-foreground]:text-white [&_span.text-primary]:text-white/70" />
+
+        <div className="relative z-10 flex items-center justify-between">
+          <Logo size="lg" className="[&_span.text-foreground]:text-white [&_span.text-primary]:text-white" />
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/70 backdrop-blur-md">
+            Edición 2026
+          </span>
         </div>
 
-        <div className="relative max-w-md space-y-6">
-          <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight">
-            El punto de venta que hace crecer tu negocio.
+        <div className="relative z-10 max-w-md space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80">
+            <span className="size-1.5 rounded-full bg-emerald-400" />
+            Cumplimiento DIAN UBL 2.1
+          </div>
+
+          <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight text-white">
+            Punto de Venta & ERP de nueva generación.
           </h1>
-          <p className="text-pretty text-lg text-white/70">
-            Ventas, inventario, cartera, contabilidad y kioscos de autoservicio en una sola
-            plataforma pensada para Colombia.
+
+          <p className="text-pretty text-base leading-relaxed text-zinc-400">
+            Diseñado para retail, supermercados y droguerías con velocidad de latencia cero,
+            arqueo ciego de caja y contabilidad automatizada.
           </p>
-          <ul className="space-y-3 text-sm text-white/80">
+
+          {/* Minimalist Floating Status Card */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md space-y-2.5">
             {[
-              'Facturación electrónica DIAN integrada',
-              'Control de inventario en tiempo real',
-              'Reportes y analítica de tus sucursales',
-            ].map((item) => (
-              <li key={item} className="flex items-center gap-3">
-                <span className="grid size-6 place-items-center rounded-full bg-white/15">
-                  <ShieldCheck className="size-3.5" />
+              { label: 'Facturación Electrónica DIAN & CUFE SHA-384', status: 'Activo' },
+              { label: 'Kárdex Ponderado con bloqueo atómico', status: 'Sincronizado' },
+              { label: 'Soporte de Impresoras Térmicas 80mm / 58mm', status: 'Listo' },
+            ].map((f) => (
+              <div key={f.label} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2 text-zinc-300">
+                  <CheckCircle2 className="size-3.5 text-emerald-400" />
+                  {f.label}
                 </span>
-                {item}
-              </li>
+                <span className="text-[11px] font-mono text-zinc-400">{f.status}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
-        <p className="relative text-sm text-white/50">© {new Date().getFullYear()} JERALPOS · Todos los derechos reservados</p>
+        <div className="relative z-10 flex items-center justify-between text-xs text-zinc-500">
+          <span>© {new Date().getFullYear()} QubitPOS · Colombia</span>
+          <span>Arquitectura Limpia</span>
+        </div>
       </section>
 
-      {/* Form panel */}
-      <section className="flex items-center justify-center px-6 py-12 sm:px-12">
-        <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden">
+      {/* Form panel - Clean & Minimalist */}
+      <section className="relative flex items-center justify-center p-6 sm:p-12 lg:p-16">`n        <div className="absolute right-6 top-6">`n          <ThemeToggle />`n        </div>
+        <div className="w-full max-w-sm space-y-8">
+          <div className="lg:hidden">
             <Logo size="md" />
           </div>
 
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Iniciar sesión</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Bienvenido de nuevo. Ingresa tus credenciales para continuar.
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+              Bienvenido
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Ingresa tus credenciales para acceder al terminal.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            <div>
-              <Label htmlFor="email" required>
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" required className="text-xs font-medium">
                 Correo electrónico
               </Label>
               <Input
                 id="email"
                 type="email"
                 autoComplete="username"
-                placeholder="tucorreo@empresa.com"
-                leadingIcon={<Mail />}
+                placeholder="admin@qubitpos.co"
+                leadingIcon={<Mail className="size-4" />}
                 value={email}
                 invalid={!!error}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
+                className="h-10 text-xs rounded-xl"
               />
             </div>
 
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <Label htmlFor="password" className="mb-0" required>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" required className="text-xs font-medium">
                   Contraseña
                 </Label>
                 <button
                   type="button"
                   className="text-xs font-medium text-primary hover:underline"
-                  onClick={() => setError('Contacta a tu administrador para restablecer la contraseña.')}
+                  onClick={() => setError('Usa las credenciales de demostración abajo.')}
                 >
-                  ¿Olvidaste tu contraseña?
+                  ¿Olvidaste la clave?
                 </button>
               </div>
               <div className="relative">
@@ -133,8 +159,8 @@ export function LoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  leadingIcon={<Lock />}
-                  className="pr-10"
+                  leadingIcon={<Lock className="size-4" />}
+                  className="h-10 pr-10 text-xs rounded-xl"
                   value={password}
                   invalid={!!error}
                   onChange={(e) => setPassword(e.target.value)}
@@ -143,50 +169,58 @@ export function LoginScreen({ onLogin }: { onLogin: (email: string) => void }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground"
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                 </button>
               </div>
             </div>
 
             {error && <FieldHint invalid>{error}</FieldHint>}
 
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="size-4 rounded border-border text-primary accent-[var(--color-primary)]"
-                disabled={loading}
-              />
-              Mantener sesión iniciada
-            </label>
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground select-none">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="size-3.5 rounded border-border text-primary"
+                  disabled={loading}
+                />
+                Recordar equipo
+              </label>
+            </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Ingresando…
-                </>
-              ) : (
-                'Ingresar'
-              )}
+            <Button
+              type="submit"
+              className="h-10 w-full rounded-xl text-xs font-semibold tracking-wide justify-center"
+              disabled={loading}
+            >
+              {loading ? 'Iniciando sesión…' : 'Ingresar al sistema'}
             </Button>
           </form>
 
-          <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3.5 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">Credenciales de demostración</p>
-            <p className="mt-1">
-              Correo: <span className="font-mono text-foreground">{DEMO_EMAIL}</span>
-            </p>
-            <p>
-              Contraseña: <span className="font-mono text-foreground">{DEMO_PASSWORD}</span>
-            </p>
+          {/* 1-click Demo credentials shortcut */}
+          <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div className="space-y-0.5">
+                <p className="font-semibold text-foreground text-[12px]">Acceso Rápido de Demo</p>
+                <p className="text-[11px] text-muted-foreground">admin@qubitpos.co · qubitpos</p>
+              </div>
+              <button
+                type="button"
+                onClick={fillDemo}
+                className="inline-flex items-center gap-1 rounded-lg border border-border/70 bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-2xs hover:bg-accent transition-colors"
+              >
+                <Zap className="size-3 text-amber-500" />
+                Rellenar
+              </button>
+            </div>
           </div>
         </div>
       </section>
     </main>
   )
 }
+

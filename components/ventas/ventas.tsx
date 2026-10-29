@@ -237,7 +237,7 @@ export function Ventas() {
     <div className="relative flex h-full min-h-0 flex-col gap-4">
       {/* Barra de advertencia si la caja está cerrada */}
       {!isRegisterOpen && (
-        <div className="flex items-center justify-between rounded-xl border border-warning/40 bg-warning-muted px-4 py-2.5 text-sm text-warning-foreground">
+        <div className="flex items-center justify-between rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300">
           <div className="flex items-center gap-2">
             <Lock className="size-4 shrink-0 text-warning" />
             <span>
@@ -277,14 +277,14 @@ export function Ventas() {
 
         <section
           aria-label="Productos"
-          className="min-h-0 flex-1 rounded-2xl border border-border bg-background p-4"
+          className="min-h-0 flex-1 rounded-2xl border border-border/75 bg-card/40 p-4 shadow-2xs"
         >
           <ProductGrid onAdd={addProduct} searchInputRef={searchInputRef} />
         </section>
 
         <aside
           aria-label="Carrito de venta"
-          className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card lg:w-[24rem] xl:w-[26rem]"
+          className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border-0 bg-transparent lg:w-[24rem] xl:w-[26rem]"
         >
           <CartPanel
             items={items}
@@ -421,3 +421,4 @@ export function Ventas() {
     </div>
   )
 }
+

@@ -50,29 +50,35 @@ export function PaymentModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Confirmar pago"
-      description={`Cliente: ${customer.name}`}
+      title="Confirmar Cobro de Venta"
+      description={`Cliente asignado: ${customer.name}`}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} className="rounded-xl">
             Cancelar
           </Button>
-          <Button variant="success" onClick={onConfirm} disabled={!canConfirm}>
+          <Button
+            variant="navy"
+            onClick={onConfirm}
+            disabled={!canConfirm}
+            className="rounded-xl px-5 bg-foreground text-background hover:bg-foreground/90 font-semibold"
+          >
             <CheckCircle2 className="size-4" />
-            Confirmar pago
+            Finalizar Venta
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <div className="rounded-xl border border-border bg-muted/40 p-4 text-center">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Total a cobrar</p>
-          <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
+        {/* Total Display Card */}
+        <div className="rounded-2xl border border-border/70 bg-muted/30 p-5 text-center space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total a cobrar</p>
+          <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground">
             {formatCurrency(totals.total)}
           </p>
           {method && (
-            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-              <method.icon className="size-3.5" />
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-medium text-foreground/80 shadow-2xs">
+              <method.icon className="size-3.5 text-primary" />
               {method.label}
             </p>
           )}
@@ -80,7 +86,7 @@ export function PaymentModal({
 
         {isCash && (
           <div className="flex flex-col gap-3">
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="cash-received">Efectivo recibido</Label>
               <Input
                 id="cash-received"
@@ -91,22 +97,24 @@ export function PaymentModal({
                 onChange={(e) => setReceived(e.target.value)}
                 invalid={insufficient}
                 placeholder="0"
-                className="h-12 text-lg"
+                className="h-11 text-base font-semibold tabular-nums rounded-xl"
                 autoFocus
               />
               {insufficient && (
-                <p className="mt-1.5 text-xs text-danger">
-                  El monto recibido es menor al total.
+                <p className="text-xs text-rose-500 font-medium">
+                  El monto recibido es menor al total de la cuenta.
                 </p>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            {/* Quick cash pills */}
+            <div className="flex flex-wrap gap-1.5">
               {QUICK_CASH.map((amount) => (
                 <button
                   key={amount}
                   type="button"
                   onClick={() => setReceived(String(amount))}
-                  className="h-10 flex-1 rounded-lg border border-border bg-card px-3 text-sm font-medium tabular-nums transition-colors hover:bg-accent"
+                  className="h-8 flex-1 rounded-xl border border-border/70 bg-card px-2.5 text-xs font-medium tabular-nums transition-colors hover:bg-muted/60"
                 >
                   {formatCurrency(amount)}
                 </button>
@@ -114,24 +122,26 @@ export function PaymentModal({
               <button
                 type="button"
                 onClick={() => setReceived(String(Math.round(totals.total)))}
-                className="h-10 flex-1 rounded-lg border border-primary bg-info-muted px-3 text-sm font-medium text-primary transition-colors"
+                className="h-8 flex-1 rounded-xl border border-foreground/30 bg-muted px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-foreground hover:text-background"
               >
                 Exacto
               </button>
             </div>
+
+            {/* Change output */}
             <div
               className={cn(
-                'flex items-center justify-between rounded-lg border px-4 py-3',
+                'flex items-center justify-between rounded-2xl border px-4 py-3 transition-colors',
                 change >= 0 && received !== ''
-                  ? 'border-success/40 bg-success-muted'
-                  : 'border-border bg-muted/40',
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
+                  : 'border-border/70 bg-muted/20 text-muted-foreground',
               )}
             >
-              <span className="text-sm font-medium">Cambio</span>
+              <span className="text-xs font-medium">Cambio a entregar</span>
               <span
                 className={cn(
-                  'text-xl font-bold tabular-nums',
-                  change >= 0 && received !== '' ? 'text-success' : 'text-muted-foreground',
+                  'text-lg font-bold tabular-nums',
+                  change >= 0 && received !== '' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
                 )}
               >
                 {formatCurrency(change > 0 ? change : 0)}
@@ -141,8 +151,8 @@ export function PaymentModal({
         )}
 
         {!isCash && method && (
-          <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground">
-            Confirma cuando el pago con {method.label.toLowerCase()} haya sido procesado.
+          <p className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground leading-relaxed">
+            Confirma cuando la transacción con <strong>{method.label}</strong> haya sido aprobada en el terminal o datáfono.
           </p>
         )}
       </div>

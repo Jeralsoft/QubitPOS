@@ -2,9 +2,9 @@ import { ScanBarcode } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const sizes = {
-  sm: { box: 'size-7 rounded-md [&_svg]:size-4', text: 'text-base' },
-  md: { box: 'size-9 rounded-lg [&_svg]:size-5', text: 'text-xl' },
-  lg: { box: 'size-12 rounded-xl [&_svg]:size-7', text: 'text-2xl' },
+  sm: { box: 'size-7 rounded-lg [&_svg]:size-3.5', text: 'text-sm font-semibold' },
+  md: { box: 'size-9 rounded-xl [&_svg]:size-4.5', text: 'text-base font-semibold' },
+  lg: { box: 'size-11 rounded-2xl [&_svg]:size-5.5', text: 'text-xl font-bold' },
 }
 
 export function Logo({
@@ -21,16 +21,20 @@ export function Logo({
     <span className={cn('inline-flex items-center gap-2.5', className)}>
       <span
         className={cn(
-          'grid place-items-center bg-gradient-to-br from-electric to-navy text-white shadow-sm',
+          'grid place-items-center bg-foreground text-background shadow-xs ring-1 ring-border/50',
           s.box,
         )}
         aria-hidden
       >
-        <ScanBarcode />
+        <ScanBarcode strokeWidth={2.2} />
       </span>
       {showText && (
-        <span className={cn('font-bold tracking-tight text-foreground', s.text)}>
-          QUBIT<span className="text-primary">POS</span>
+        <span className={cn('tracking-tight text-foreground flex items-center gap-1', s.text)}>
+          <span>QUBIT</span>
+          <span className="text-primary font-bold">POS</span>
+          <span className="ml-1 rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider bg-primary/10 text-primary">
+            PRO
+          </span>
         </span>
       )}
       <span className="sr-only">QUBITPOS</span>

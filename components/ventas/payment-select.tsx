@@ -11,8 +11,8 @@ interface PaymentSelectProps {
 export function PaymentSelect({ value, onSelect }: PaymentSelectProps) {
   return (
     <fieldset>
-      <legend className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        Método de pago
+      <legend className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+        Método de pago rápido
       </legend>
       <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Método de pago">
         {paymentMethods.map((method) => {
@@ -26,14 +26,14 @@ export function PaymentSelect({ value, onSelect }: PaymentSelectProps) {
               aria-checked={active}
               onClick={() => onSelect(method.id)}
               className={cn(
-                'flex h-14 items-center gap-2.5 rounded-lg border px-3 text-sm font-medium transition-colors duration-150',
+                'flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all duration-150 select-none',
                 active
-                  ? 'border-primary bg-info-muted text-primary shadow-xs'
-                  : 'border-border bg-card text-foreground hover:bg-accent',
+                  ? 'border-foreground bg-foreground text-background shadow-2xs font-semibold'
+                  : 'border-border/70 bg-card text-foreground/80 hover:bg-muted/60 hover:text-foreground',
               )}
             >
-              <Icon className="size-5 shrink-0" />
-              {method.label}
+              <Icon className="size-4 shrink-0" />
+              <span className="truncate">{method.label}</span>
             </button>
           )
         })}
