@@ -563,7 +563,7 @@ export function Empleados() {
         onClose={() => setCreateOpen(false)}
         title="Nuevo empleado"
         description="Registra un nuevo miembro del personal."
-        className="sm:max-w-3xl lg:max-w-4xl"
+        className="max-w-3xl"
       >
         <EmployeeForm onCancel={() => setCreateOpen(false)} onSubmit={handleCreate} />
       </Modal>
@@ -574,7 +574,7 @@ export function Empleados() {
         onClose={() => setEditing(null)}
         title="Editar empleado"
         description="Actualiza la información del empleado."
-        className="sm:max-w-3xl lg:max-w-4xl"
+        className="max-w-3xl"
       >
         {editing && (
           <EmployeeForm initial={editing} onCancel={() => setEditing(null)} onSubmit={handleEditSave} />

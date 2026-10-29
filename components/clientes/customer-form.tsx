@@ -1,7 +1,19 @@
 'use client'
 
 import * as React from 'react'
-import { UserPlus, Check } from 'lucide-react'
+import {
+  User,
+  Building,
+  Check,
+  UserPlus,
+  Mail,
+  Phone,
+  MapPin,
+  CreditCard,
+  FileText,
+  ShieldCheck,
+  DollarSign,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/jeralpos/button'
 import { Input, Select, Label, FieldHint } from '@/components/jeralpos/input'
@@ -28,69 +40,60 @@ interface FormState {
   personType: PersonType
   documentType: DocumentType
   document: string
+  dv: string
   firstName: string
   lastName: string
   businessName: string
   phone: string
   mobile: string
   email: string
+  invoiceEmail: string
   address: string
+  neighborhood: string
   city: string
   department: string
   type: CustomerType
   creditLimit: string
   creditDays: string
   priceList: string
+  discountPct: string
+  taxRegime: string
+  fiscalResponsibilities: string
   status: CustomerStatus
 }
 
-function buildInitial(c?: Customer | null): FormState {
-  return {
-    personType: c?.personType ?? 'natural',
-    documentType: c?.documentType ?? 'CC',
-    document: c?.document ?? '',
-    firstName: c?.firstName ?? '',
-    lastName: c?.lastName ?? '',
-    businessName: c?.businessName ?? '',
-    phone: c?.phone ?? '',
-    mobile: c?.mobile ?? '',
-    email: c?.email ?? '',
-    address: c?.address ?? '',
-    city: c?.city ?? '',
-    department: c?.department ?? '',
-    type: c?.type ?? 'minorista',
-    creditLimit: c ? String(c.creditLimit) : '0',
-    creditDays: c ? String(c.creditDays) : '0',
-    priceList: c?.priceList ?? 'General',
-    status: c?.status ?? 'activo',
-  }
-}
-
+type Tab = 'identificacion' | 'contacto' | 'comercial'
 type Errors = Partial<Record<keyof FormState, string>>
 
-function FormSection({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="grid gap-x-6 gap-y-4 border-t border-border py-5 md:grid-cols-[220px_1fr] first:border-t-0 first:pt-0">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
-      </div>
-      <div className="grid gap-4">{children}</div>
-    </section>
-  )
-}
-
 export function CustomerForm({ initial, onCancel, onSubmit }: CustomerFormProps) {
-  const [form, setForm] = React.useState<FormState>(() => buildInitial(initial))
+  const [activeTab, setActiveTab] = React.useState<Tab>('identificacion')
   const [errors, setErrors] = React.useState<Errors>({})
+
+  const [form, setForm] = React.useState<FormState>(() => ({
+    personType: initial?.personType ?? 'natural',
+    documentType: initial?.documentType ?? 'CC',
+    document: initial?.document ?? '',
+    dv: initial?.dv ?? '',
+    firstName: initial?.firstName ?? '',
+    lastName: initial?.lastName ?? '',
+    businessName: initial?.businessName ?? '',
+    phone: initial?.phone ?? '',
+    mobile: initial?.mobile ?? '',
+    email: initial?.email ?? '',
+    invoiceEmail: initial?.invoiceEmail ?? '',
+    address: initial?.address ?? '',
+    neighborhood: initial?.neighborhood ?? '',
+    city: initial?.city ?? cities[0],
+    department: initial?.department ?? departments[0],
+    type: initial?.type ?? 'minorista',
+    creditLimit: initial ? String(initial.creditLimit) : '0',
+    creditDays: initial ? String(initial.creditDays) : '0',
+    priceList: initial?.priceList ?? priceLists[0],
+    discountPct: initial?.discountPct ? String(initial.discountPct) : '0',
+    taxRegime: initial?.taxRegime ?? 'No responsable de IVA',
+    fiscalResponsibilities: initial?.fiscalResponsibilities ?? 'R-99-PN No responsable de IVA',
+    status: initial?.status ?? 'activo',
+  }))
 
   const isCompany = form.personType === 'juridica'
 
@@ -99,306 +102,471 @@ export function CustomerForm({ initial, onCancel, onSubmit }: CustomerFormProps)
     setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev))
   }
 
-  const validate = (): Errors => {
+  const validate = (): boolean => {
     const next: Errors = {}
-    if (!form.document.trim()) next.document = 'El documento es obligatorio'
+    if (!form.document.trim()) next.document = 'El número de identificación es obligatorio'
     if (isCompany) {
       if (!form.businessName.trim()) next.businessName = 'La razón social es obligatoria'
     } else {
-      if (!form.firstName.trim()) next.firstName = 'Los nombres son obligatorios'
-      if (!form.lastName.trim()) next.lastName = 'Los apellidos son obligatorios'
+      if (!form.firstName.trim()) next.firstName = 'El nombre es obligatorio'
+      if (!form.lastName.trim()) next.lastName = 'El apellido es obligatorio'
     }
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-      next.email = 'Ingresa un correo válido'
-    if (!form.mobile.trim() && !form.phone.trim())
-      next.mobile = 'Ingresa al menos un teléfono de contacto'
-    if (form.creditLimit && Number.parseFloat(form.creditLimit) < 0)
-      next.creditLimit = 'El límite no puede ser negativo'
-    if (form.creditDays && Number.parseInt(form.creditDays, 10) < 0)
-      next.creditDays = 'Los días no pueden ser negativos'
-    return next
+    if (!form.mobile.trim() && !form.phone.trim()) {
+      next.mobile = 'Ingresa al menos un número telefónico'
+    }
+    setErrors(next)
+    return Object.keys(next).length === 0
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const next = validate()
-    setErrors(next)
-    if (Object.keys(next).length > 0) {
-      const first = document.querySelector<HTMLElement>('[aria-invalid="true"]')
-      first?.focus()
+    if (!validate()) {
+      if (errors.document || errors.firstName || errors.lastName || errors.businessName) {
+        setActiveTab('identificacion')
+      } else if (errors.mobile || errors.phone) {
+        setActiveTab('contacto')
+      }
       return
     }
     const displayName = isCompany
-      ? form.businessName.trim()
-      : `${form.firstName.trim()} ${form.lastName.trim()}`.trim()
+      ? form.businessName
+      : `${form.firstName} ${form.lastName}`.trim()
     onSubmit(displayName)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-h-[78vh] flex-col">
-      <div className="flex-1 overflow-y-auto px-1">
-        <FormSection
-          title="Información personal"
-          description="Identifica al cliente y su tipo de persona."
-        >
-          <div className="grid gap-4 sm:grid-cols-[1fr_110px_1fr]">
-            <div>
-              <Label htmlFor="cf-persontype">Tipo de persona</Label>
-              <Select
-                id="cf-persontype"
-                value={form.personType}
-                onChange={(e) => set('personType', e.target.value as PersonType)}
-              >
-                <option value="natural">Persona natural</option>
-                <option value="juridica">Persona jurídica</option>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="cf-doctype">Documento</Label>
-              <Select
-                id="cf-doctype"
-                value={form.documentType}
-                onChange={(e) => set('documentType', e.target.value as DocumentType)}
-              >
-                <option value="CC">CC</option>
-                <option value="NIT">NIT</option>
-                <option value="CE">CE</option>
-                <option value="PP">PP</option>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="cf-document" required>
-                Número
-              </Label>
-              <Input
-                id="cf-document"
-                value={form.document}
-                onChange={(e) => set('document', e.target.value)}
-                placeholder="1032456789"
-                inputMode="numeric"
-                invalid={!!errors.document}
-              />
-              {errors.document && <FieldHint invalid>{errors.document}</FieldHint>}
-            </div>
-          </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {/* Tab navigation */}
+      <nav className="flex rounded-xl border border-border/80 bg-muted/30 p-1.5 gap-1.5 overflow-x-auto text-xs">
+        {[
+          { id: 'identificacion', label: 'Identificación & Persona', icon: isCompany ? Building : User },
+          { id: 'contacto', label: 'Contacto & Facturación DIAN', icon: Mail },
+          { id: 'comercial', label: 'Condiciones Comerciales & Estado', icon: DollarSign },
+        ].map((t) => {
+          const Icon = t.icon
+          const active = activeTab === t.id
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id as Tab)}
+              className={cn(
+                'flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 font-medium transition-all select-none whitespace-nowrap',
+                active
+                  ? 'bg-card text-foreground font-semibold shadow-xs'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+              )}
+            >
+              <Icon className="size-4 shrink-0" />
+              <span>{t.label}</span>
+            </button>
+          )
+        })}
+      </nav>
 
-          {isCompany ? (
+      {/* Tab content */}
+      <div className="space-y-4">
+        {/* TAB 1: IDENTIFICACIÓN & PERSONA */}
+        {activeTab === 'identificacion' && (
+          <div className="space-y-4 animate-in fade-in-50 duration-150">
+            {/* Persona Natural vs Jurídica */}
             <div>
-              <Label htmlFor="cf-business" required>
-                Razón social
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                Tipo de personería jurídica
               </Label>
-              <Input
-                id="cf-business"
-                value={form.businessName}
-                onChange={(e) => set('businessName', e.target.value)}
-                placeholder="Distribuidora El Progreso S.A.S"
-                invalid={!!errors.businessName}
-              />
-              {errors.businessName && <FieldHint invalid>{errors.businessName}</FieldHint>}
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    set('personType', 'natural')
+                    if (form.documentType === 'NIT') set('documentType', 'CC')
+                  }}
+                  className={cn(
+                    'flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all select-none',
+                    !isCompany
+                      ? 'border-foreground bg-foreground text-background font-semibold shadow-xs'
+                      : 'border-border/80 bg-card text-foreground/80 hover:bg-muted hover:text-foreground',
+                  )}
+                >
+                  <User className="size-4" />
+                  <span>Persona Natural</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    set('personType', 'juridica')
+                    set('documentType', 'NIT')
+                  }}
+                  className={cn(
+                    'flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all select-none',
+                    isCompany
+                      ? 'border-foreground bg-foreground text-background font-semibold shadow-xs'
+                      : 'border-border/80 bg-card text-foreground/80 hover:bg-muted hover:text-foreground',
+                  )}
+                >
+                  <Building className="size-4" />
+                  <span>Persona Jurídica (Empresa)</span>
+                </button>
+              </div>
             </div>
-          ) : (
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <Label htmlFor="cf-doc-type">Tipo de documento</Label>
+                <Select
+                  id="cf-doc-type"
+                  value={form.documentType}
+                  onChange={(e) => set('documentType', e.target.value as DocumentType)}
+                >
+                  {isCompany ? (
+                    <option value="NIT">NIT (Número de Identificación Tributaria)</option>
+                  ) : (
+                    <>
+                      <option value="CC">CC (Cédula de Ciudadanía)</option>
+                      <option value="CE">CE (Cédula de Extranjería)</option>
+                      <option value="PP">Pasaporte</option>
+                      <option value="NIT">NIT (Persona Natural)</option>
+                    </>
+                  )}
+                </Select>
+              </div>
+
+              <div className={isCompany ? 'sm:col-span-1' : 'sm:col-span-2'}>
+                <Label htmlFor="cf-doc" required>
+                  Número de documento
+                </Label>
+                <Input
+                  id="cf-doc"
+                  value={form.document}
+                  onChange={(e) => set('document', e.target.value)}
+                  placeholder={isCompany ? '901234567' : '1020304050'}
+                  invalid={!!errors.document}
+                  autoFocus
+                />
+                {errors.document && <FieldHint invalid>{errors.document}</FieldHint>}
+              </div>
+
+              {isCompany && (
+                <div>
+                  <Label htmlFor="cf-dv">DV (Dígito)</Label>
+                  <Input
+                    id="cf-dv"
+                    value={form.dv}
+                    onChange={(e) => set('dv', e.target.value)}
+                    placeholder="4"
+                    maxLength={1}
+                  />
+                </div>
+              )}
+            </div>
+
+            {isCompany ? (
+              <div>
+                <Label htmlFor="cf-bname" required>
+                  Razón social / Nombre comercial
+                </Label>
+                <Input
+                  id="cf-bname"
+                  value={form.businessName}
+                  onChange={(e) => set('businessName', e.target.value)}
+                  placeholder="Distribuciones & Servicios Andina S.A.S."
+                  invalid={!!errors.businessName}
+                />
+                {errors.businessName && <FieldHint invalid>{errors.businessName}</FieldHint>}
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="cf-fname" required>
+                    Nombres
+                  </Label>
+                  <Input
+                    id="cf-fname"
+                    value={form.firstName}
+                    onChange={(e) => set('firstName', e.target.value)}
+                    placeholder="Carlos Andrés"
+                    invalid={!!errors.firstName}
+                  />
+                  {errors.firstName && <FieldHint invalid>{errors.firstName}</FieldHint>}
+                </div>
+
+                <div>
+                  <Label htmlFor="cf-lname" required>
+                    Apellidos
+                  </Label>
+                  <Input
+                    id="cf-lname"
+                    value={form.lastName}
+                    onChange={(e) => set('lastName', e.target.value)}
+                    placeholder="Gómez Restrepo"
+                    invalid={!!errors.lastName}
+                  />
+                  {errors.lastName && <FieldHint invalid>{errors.lastName}</FieldHint>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: CONTACTO & FACTURACIÓN DIAN */}
+        {activeTab === 'contacto' && (
+          <div className="space-y-4 animate-in fade-in-50 duration-150">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label htmlFor="cf-first" required>
-                  Nombres
+                <Label htmlFor="cf-mobile" required>
+                  Celular principal
                 </Label>
                 <Input
-                  id="cf-first"
-                  value={form.firstName}
-                  onChange={(e) => set('firstName', e.target.value)}
-                  placeholder="María Fernanda"
-                  invalid={!!errors.firstName}
+                  id="cf-mobile"
+                  leadingIcon={<Phone />}
+                  value={form.mobile}
+                  onChange={(e) => set('mobile', e.target.value)}
+                  placeholder="310 123 4567"
+                  invalid={!!errors.mobile}
                 />
-                {errors.firstName && <FieldHint invalid>{errors.firstName}</FieldHint>}
+                {errors.mobile && <FieldHint invalid>{errors.mobile}</FieldHint>}
               </div>
+
               <div>
-                <Label htmlFor="cf-last" required>
-                  Apellidos
-                </Label>
+                <Label htmlFor="cf-phone">Teléfono fijo</Label>
                 <Input
-                  id="cf-last"
-                  value={form.lastName}
-                  onChange={(e) => set('lastName', e.target.value)}
-                  placeholder="Gómez Ruiz"
-                  invalid={!!errors.lastName}
+                  id="cf-phone"
+                  value={form.phone}
+                  onChange={(e) => set('phone', e.target.value)}
+                  placeholder="601 246 8135"
                 />
-                {errors.lastName && <FieldHint invalid>{errors.lastName}</FieldHint>}
               </div>
             </div>
-          )}
-        </FormSection>
 
-        <FormSection title="Contacto" description="Medios de comunicación y ubicación.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="cf-phone">Teléfono</Label>
-              <Input
-                id="cf-phone"
-                value={form.phone}
-                onChange={(e) => set('phone', e.target.value)}
-                placeholder="601 745 2210"
-              />
-            </div>
-            <div>
-              <Label htmlFor="cf-mobile" required>
-                Celular
-              </Label>
-              <Input
-                id="cf-mobile"
-                value={form.mobile}
-                onChange={(e) => set('mobile', e.target.value)}
-                placeholder="310 456 7890"
-                invalid={!!errors.mobile}
-              />
-              {errors.mobile && <FieldHint invalid>{errors.mobile}</FieldHint>}
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="cf-email">Correo</Label>
-            <Input
-              id="cf-email"
-              type="email"
-              value={form.email}
-              onChange={(e) => set('email', e.target.value)}
-              placeholder="cliente@correo.com"
-              invalid={!!errors.email}
-            />
-            {errors.email && <FieldHint invalid>{errors.email}</FieldHint>}
-          </div>
-          <div>
-            <Label htmlFor="cf-address">Dirección</Label>
-            <Input
-              id="cf-address"
-              value={form.address}
-              onChange={(e) => set('address', e.target.value)}
-              placeholder="Cra 15 #93-45"
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="cf-city">Ciudad</Label>
-              <Select id="cf-city" value={form.city} onChange={(e) => set('city', e.target.value)}>
-                <option value="">Seleccionar...</option>
-                {cities.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="cf-dep">Departamento</Label>
-              <Select
-                id="cf-dep"
-                value={form.department}
-                onChange={(e) => set('department', e.target.value)}
-              >
-                <option value="">Seleccionar...</option>
-                {departments.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
-        </FormSection>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="cf-email">Correo de contacto</Label>
+                <Input
+                  id="cf-email"
+                  type="email"
+                  leadingIcon={<Mail />}
+                  value={form.email}
+                  onChange={(e) => set('email', e.target.value)}
+                  placeholder="contacto@empresa.com"
+                />
+              </div>
 
-        <FormSection
-          title="Información comercial"
-          description="Condiciones de crédito y clasificación."
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="cf-type">Tipo de cliente</Label>
-              <Select
-                id="cf-type"
-                value={form.type}
-                onChange={(e) => set('type', e.target.value as CustomerType)}
-              >
-                {(Object.keys(customerTypeLabel) as CustomerType[]).map((t) => (
-                  <option key={t} value={t}>
-                    {customerTypeLabel[t]}
-                  </option>
-                ))}
-              </Select>
+              <div>
+                <Label htmlFor="cf-invemail">Correo entrega factura electrónica (DIAN)</Label>
+                <Input
+                  id="cf-invemail"
+                  type="email"
+                  leadingIcon={<FileText />}
+                  value={form.invoiceEmail}
+                  onChange={(e) => set('invoiceEmail', e.target.value)}
+                  placeholder="facturacion@empresa.com"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="cf-pricelist">Lista de precios</Label>
-              <Select
-                id="cf-pricelist"
-                value={form.priceList}
-                onChange={(e) => set('priceList', e.target.value)}
-              >
-                {priceLists.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </Select>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <Label htmlFor="cf-addr">Dirección fiscal</Label>
+                <Input
+                  id="cf-addr"
+                  leadingIcon={<MapPin />}
+                  value={form.address}
+                  onChange={(e) => set('address', e.target.value)}
+                  placeholder="Carrera 15 # 85-30 Oficina 402"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cf-neigh">Barrio / Sector</Label>
+                <Input
+                  id="cf-neigh"
+                  value={form.neighborhood}
+                  onChange={(e) => set('neighborhood', e.target.value)}
+                  placeholder="Chicó Norte"
+                />
+              </div>
             </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="cf-credit">Límite de crédito</Label>
-              <Input
-                id="cf-credit"
-                value={form.creditLimit}
-                onChange={(e) => set('creditLimit', e.target.value)}
-                placeholder="0"
-                inputMode="numeric"
-                invalid={!!errors.creditLimit}
-              />
-              {errors.creditLimit && <FieldHint invalid>{errors.creditLimit}</FieldHint>}
-            </div>
-            <div>
-              <Label htmlFor="cf-days">Días de crédito</Label>
-              <Input
-                id="cf-days"
-                value={form.creditDays}
-                onChange={(e) => set('creditDays', e.target.value)}
-                placeholder="0"
-                inputMode="numeric"
-                invalid={!!errors.creditDays}
-              />
-              {errors.creditDays && <FieldHint invalid>{errors.creditDays}</FieldHint>}
-            </div>
-          </div>
-          <div>
-            <Label>Estado</Label>
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(statusLabel) as CustomerStatus[]).map((value) => {
-                const selected = form.status === value
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => set('status', value)}
-                    aria-pressed={selected}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                      selected
-                        ? 'border-primary bg-info-muted text-primary'
-                        : 'border-border bg-card text-muted-foreground hover:bg-accent',
-                    )}
-                  >
-                    {selected && <Check className="size-4" aria-hidden />}
-                    {statusLabel[value]}
-                  </button>
-                )
-              })}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="cf-city">Ciudad / Municipio</Label>
+                <Select
+                  id="cf-city"
+                  value={form.city}
+                  onChange={(e) => set('city', e.target.value)}
+                >
+                  {cities.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="cf-dept">Departamento</Label>
+                <Select
+                  id="cf-dept"
+                  value={form.department}
+                  onChange={(e) => set('department', e.target.value)}
+                >
+                  {departments.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
           </div>
-        </FormSection>
+        )}
+
+        {/* TAB 3: CONDICIONES COMERCIALES, CRÉDITO & ESTADO */}
+        {activeTab === 'comercial' && (
+          <div className="space-y-4 animate-in fade-in-50 duration-150">
+            {/* ESTADO EN DISPOSICIÓN HORIZONTAL */}
+            <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Estado del cliente
+                </Label>
+                <span className="text-xs text-muted-foreground">Habilitación para ventas y facturación</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full">
+                {(Object.keys(statusLabel) as CustomerStatus[]).map((value) => {
+                  const selected = form.status === value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => set('status', value)}
+                      aria-pressed={selected}
+                      className={cn(
+                        'flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all select-none',
+                        selected
+                          ? 'border-foreground bg-foreground text-background font-semibold shadow-xs'
+                          : 'border-border/80 bg-card text-foreground/80 hover:bg-muted hover:text-foreground',
+                      )}
+                    >
+                      {selected && <Check className="size-4 shrink-0 stroke-[2.5]" aria-hidden />}
+                      <span>{statusLabel[value]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <Label htmlFor="cf-type">Tipo de cliente</Label>
+                <Select
+                  id="cf-type"
+                  value={form.type}
+                  onChange={(e) => set('type', e.target.value as CustomerType)}
+                >
+                  {(Object.keys(customerTypeLabel) as CustomerType[]).map((t) => (
+                    <option key={t} value={t}>
+                      {customerTypeLabel[t]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="cf-pricelist">Lista de precios</Label>
+                <Select
+                  id="cf-pricelist"
+                  value={form.priceList}
+                  onChange={(e) => set('priceList', e.target.value)}
+                >
+                  {priceLists.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="cf-disc">% Descuento fijo</Label>
+                <Input
+                  id="cf-disc"
+                  inputMode="numeric"
+                  value={form.discountPct}
+                  onChange={(e) => set('discountPct', e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="cf-credit">Cupo de crédito ($ COP)</Label>
+                <Input
+                  id="cf-credit"
+                  inputMode="numeric"
+                  value={form.creditLimit}
+                  onChange={(e) => set('creditLimit', e.target.value)}
+                  placeholder="0"
+                />
+                <FieldHint>Monto máximo para compras a crédito en POS</FieldHint>
+              </div>
+
+              <div>
+                <Label htmlFor="cf-days">Plazo de crédito (Días)</Label>
+                <Input
+                  id="cf-days"
+                  inputMode="numeric"
+                  value={form.creditDays}
+                  onChange={(e) => set('creditDays', e.target.value)}
+                  placeholder="30"
+                />
+                <FieldHint>Días de vencimiento de factura electrónica</FieldHint>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="cf-regime">Régimen fiscal</Label>
+                <Select
+                  id="cf-regime"
+                  value={form.taxRegime}
+                  onChange={(e) => set('taxRegime', e.target.value)}
+                >
+                  <option>No responsable de IVA</option>
+                  <option>Responsable de IVA</option>
+                  <option>Régimen Simple de Tributación (RST)</option>
+                  <option>Gran Contribuyente</option>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="cf-fiscal">Responsabilidad tributaria DIAN</Label>
+                <Select
+                  id="cf-fiscal"
+                  value={form.fiscalResponsibilities}
+                  onChange={(e) => set('fiscalResponsibilities', e.target.value)}
+                >
+                  <option>R-99-PN No responsable de IVA</option>
+                  <option>O-13 Gran contribuyente</option>
+                  <option>O-15 Autorretenedor</option>
+                  <option>O-23 Agente de retención en el IVA</option>
+                  <option>O-47 Régimen simple</option>
+                </Select>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="mt-1 flex items-center justify-end gap-2 border-t border-border pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      {/* Footer buttons */}
+      <div className="mt-2 flex items-center justify-end gap-2 border-t border-border/80 pt-4">
+        <Button type="button" variant="outline" size="md" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" size="md">
           <UserPlus />
-          Guardar cliente
+          {initial ? 'Guardar cambios' : 'Registrar cliente'}
         </Button>
       </div>
     </form>

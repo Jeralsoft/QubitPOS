@@ -256,7 +256,7 @@ export function Ventas() {
         </div>
       )}
 
-      <div className="flex h-full min-h-0 flex-col gap-4 lg:flex-row">
+      <div className="flex flex-1 min-h-0 flex-col gap-3 lg:flex-row">
         {/* Toast flotante de escaneo de código de barras */}
         {scanNotification && (
           <div
@@ -277,14 +277,14 @@ export function Ventas() {
 
         <section
           aria-label="Productos"
-          className="min-h-0 flex-1 rounded-2xl border border-border/75 bg-card/40 p-4 shadow-2xs"
+          className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border/75 bg-card/40 p-3.5 shadow-2xs"
         >
           <ProductGrid onAdd={addProduct} searchInputRef={searchInputRef} />
         </section>
 
         <aside
           aria-label="Carrito de venta"
-          className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border-0 bg-transparent lg:w-[24rem] xl:w-[26rem]"
+          className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border-0 bg-transparent lg:w-[24rem] xl:w-[26rem]"
         >
           <CartPanel
             items={items}

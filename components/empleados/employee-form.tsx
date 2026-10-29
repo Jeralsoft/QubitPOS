@@ -2,17 +2,20 @@
 
 import * as React from 'react'
 import {
-  UserCog,
-  Check,
-  Camera,
   User,
+  Building,
+  Check,
+  UserPlus,
+  Mail,
   Phone,
+  MapPin,
   Briefcase,
   ShieldCheck,
   CreditCard,
   FileText,
   Lock,
-  Building,
+  Camera,
+  UserCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/jeralpos/button'
@@ -24,7 +27,6 @@ import {
   statusLabel,
   employeeInitials,
   companyDepartments,
-  colombianDepartments,
   epsList,
   pensionFunds,
   cesantiasFunds,
@@ -43,8 +45,11 @@ interface EmployeeFormProps {
   onSubmit: (fullName: string) => void
 }
 
+export type StaffType = 'planta' | 'contratista'
+
 interface FormState {
-  // 1. Información Personal
+  // 1. Identificación & Persona
+  staffType: StaffType
   firstName: string
   lastName: string
   documentType: DocumentType
@@ -80,15 +85,13 @@ interface FormState {
   payFrequency: string
   transportAllowance: string
 
-  // 4. Seguridad Social & PILA
+  // 4. Seguridad Social (PILA) & POS
   eps: string
   pension: string
   cesantias: string
   arl: string
   arlRisk: string
   cajaCompensacion: string
-
-  // 5. Pago & POS
   paymentMethod: string
   bank: string
   accountType: string
@@ -97,13 +100,12 @@ interface FormState {
   username: string
   posPin: string
   assignedRegister: string
-
-  // 6. Observaciones
   notes: string
 }
 
 function buildInitial(e?: Employee | null): FormState {
   return {
+    staffType: 'planta',
     firstName: e?.firstName ?? '',
     lastName: e?.lastName ?? '',
     documentType: e?.documentType ?? 'CC',
@@ -158,22 +160,12 @@ function buildInitial(e?: Employee | null): FormState {
 }
 
 type Errors = Partial<Record<keyof FormState, string>>
-
-const TABS = [
-  { id: 'personal', label: 'Datos Personales', icon: User },
-  { id: 'contacto', label: 'Ubicación & Contacto', icon: Phone },
-  { id: 'laboral', label: 'Laboral & Contrato', icon: Briefcase },
-  { id: 'seguridad', label: 'Seguridad Social (PILA)', icon: ShieldCheck },
-  { id: 'pago_pos', label: 'Dispersión & POS', icon: CreditCard },
-  { id: 'notas', label: 'Notas', icon: FileText },
-] as const
-
-type TabId = (typeof TABS)[number]['id']
+type Tab = 'identificacion' | 'contacto' | 'laboral' | 'seguridad_pos'
 
 export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps) {
   const [form, setForm] = React.useState<FormState>(() => buildInitial(initial))
   const [errors, setErrors] = React.useState<Errors>({})
-  const [activeTab, setActiveTab] = React.useState<TabId>('laboral')
+  const [activeTab, setActiveTab] = React.useState<Tab>('identificacion')
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -197,14 +189,14 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
 
   const validate = (): Errors => {
     const next: Errors = {}
+    if (!form.document.trim()) next.document = 'El documento de identidad es obligatorio'
     if (!form.firstName.trim()) next.firstName = 'El nombre es obligatorio'
     if (!form.lastName.trim()) next.lastName = 'El apellido es obligatorio'
-    if (!form.document.trim()) next.document = 'El documento es obligatorio'
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       next.email = 'Ingresa un correo electrónico válido'
     if (!form.mobile.trim() && !form.phone.trim())
-      next.mobile = 'Ingresa al menos un número de celular'
-    if (!form.role) next.role = 'Selecciona un cargo'
+      next.mobile = 'Ingresa al menos un número telefónico'
+    if (!form.role) next.role = 'Selecciona un cargo para el empleado'
     return next
   }
 
@@ -213,8 +205,8 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
     const next = validate()
     setErrors(next)
     if (Object.keys(next).length > 0) {
-      if (next.firstName || next.lastName || next.document) {
-        setActiveTab('personal')
+      if (next.document || next.firstName || next.lastName) {
+        setActiveTab('identificacion')
       } else if (next.mobile || next.email) {
         setActiveTab('contacto')
       } else if (next.role) {
@@ -226,75 +218,128 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-h-[82vh] flex-col">
-      {/* Employee Quick Header Profile Banner */}
-      <div className="flex items-center justify-between border-b border-border/70 pb-4 mb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex size-12 shrink-0 items-center justify-center rounded-2xl text-base font-semibold text-white shadow-xs"
-            style={{ backgroundColor: preview.color }}
-            aria-hidden
-          >
-            {employeeInitials(preview)}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {form.firstName || form.lastName ? `${form.firstName} ${form.lastName}` : 'Nuevo Colaborador'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {form.role} · {form.branch}
-            </p>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {}}
-          className="rounded-xl h-8 text-xs gap-1.5"
-        >
-          <Camera className="size-3.5" />
-          <span>Foto</span>
-        </Button>
-      </div>
-
-      {/* Tabs Navigation */}
-      <div className="flex gap-1.5 overflow-x-auto pb-3 mb-2 border-b border-border/60">
-        {TABS.map((tab) => {
-          const active = activeTab === tab.id
-          const Icon = tab.icon
+    <form onSubmit={handleSubmit} className="flex max-h-[82vh] flex-col gap-5">
+      {/* Tab navigation matching customer-form */}
+      <nav className="flex rounded-xl border border-border/80 bg-muted/30 p-1.5 gap-1.5 overflow-x-auto text-xs">
+        {[
+          { id: 'identificacion', label: 'Identificación & Persona', icon: User },
+          { id: 'contacto', label: 'Contacto & Ubicación', icon: Mail },
+          { id: 'laboral', label: 'Laboral & Contrato', icon: Briefcase },
+          { id: 'seguridad_pos', label: 'Seguridad Social & POS', icon: ShieldCheck },
+        ].map((t) => {
+          const Icon = t.icon
+          const active = activeTab === t.id
           const hasError =
-            (tab.id === 'personal' && (errors.firstName || errors.lastName || errors.document)) ||
-            (tab.id === 'contacto' && (errors.mobile || errors.email)) ||
-            (tab.id === 'laboral' && errors.role)
+            (t.id === 'identificacion' && (errors.firstName || errors.lastName || errors.document)) ||
+            (t.id === 'contacto' && (errors.mobile || errors.email)) ||
+            (t.id === 'laboral' && errors.role)
 
           return (
             <button
-              key={tab.id}
+              key={t.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => setActiveTab(t.id as Tab)}
               className={cn(
-                'flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium whitespace-nowrap transition-all select-none',
+                'flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 font-medium transition-all select-none whitespace-nowrap',
                 active
-                  ? 'bg-foreground text-background shadow-xs font-semibold'
-                  : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
-                hasError && 'text-rose-500 font-semibold',
+                  ? 'bg-card text-foreground font-semibold shadow-xs'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                hasError && 'text-danger font-semibold'
               )}
             >
-              <Icon className="size-3.5" />
-              <span>{tab.label}</span>
-              {hasError && <span className="size-1.5 rounded-full bg-rose-500" />}
+              <Icon className="size-4 shrink-0" />
+              <span>{t.label}</span>
+              {hasError && <span className="size-1.5 rounded-full bg-danger shrink-0" />}
             </button>
           )
         })}
-      </div>
+      </nav>
 
-      {/* Tabs Content */}
-      <div className="flex-1 overflow-y-auto px-1 py-2">
-        {/* TAB 1: DATOS PERSONALES */}
-        {activeTab === 'personal' && (
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto px-0.5 space-y-4">
+        {/* TAB 1: IDENTIFICACIÓN & PERSONA */}
+        {activeTab === 'identificacion' && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
+            {/* Tipo de Vinculación / Personal - Horizontal Segmented Selector */}
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                Tipo de vinculación laboral
+              </Label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => set('staffType', 'planta')}
+                  className={cn(
+                    'flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all select-none',
+                    form.staffType === 'planta'
+                      ? 'border-foreground bg-foreground text-background font-semibold shadow-xs'
+                      : 'border-border/80 bg-card text-foreground/80 hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <UserCheck className="size-4" />
+                  <span>Personal de Planta (Nómina)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set('staffType', 'contratista')}
+                  className={cn(
+                    'flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all select-none',
+                    form.staffType === 'contratista'
+                      ? 'border-foreground bg-foreground text-background font-semibold shadow-xs'
+                      : 'border-border/80 bg-card text-foreground/80 hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <Briefcase className="size-4" />
+                  <span>Contratista / Prestación de Servicios</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Documento y Tipo */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <Label htmlFor="ef-doctype">Tipo de documento</Label>
+                <Select
+                  id="ef-doctype"
+                  value={form.documentType}
+                  onChange={(e) => set('documentType', e.target.value as DocumentType)}
+                >
+                  <option value="CC">CC (Cédula de Ciudadanía)</option>
+                  <option value="CE">CE (Cédula de Extranjería)</option>
+                  <option value="TI">TI (Tarjeta de Identidad)</option>
+                  <option value="PA">Pasaporte (PA)</option>
+                  <option value="PPT">PPT (Permiso Protección Temporal)</option>
+                  <option value="PEP">PEP (Permiso Especial)</option>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="ef-document" required>
+                  Número de documento
+                </Label>
+                <Input
+                  id="ef-document"
+                  value={form.document}
+                  onChange={(e) => set('document', e.target.value)}
+                  placeholder="1020304050"
+                  invalid={!!errors.document}
+                  autoFocus
+                />
+                {errors.document && <FieldHint invalid>{errors.document}</FieldHint>}
+              </div>
+
+              <div>
+                <Label htmlFor="ef-issue-place">Lugar de expedición</Label>
+                <Input
+                  id="ef-issue-place"
+                  value={form.documentIssuePlace}
+                  onChange={(e) => set('documentIssuePlace', e.target.value)}
+                  placeholder="Bogotá D.C."
+                />
+              </div>
+            </div>
+
+            {/* Nombres y Apellidos */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="ef-first" required>
@@ -304,7 +349,7 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
                   id="ef-first"
                   value={form.firstName}
                   onChange={(e) => set('firstName', e.target.value)}
-                  placeholder="Laura"
+                  placeholder="Carlos Andrés"
                   invalid={!!errors.firstName}
                 />
                 {errors.firstName && <FieldHint invalid>{errors.firstName}</FieldHint>}
@@ -317,54 +362,15 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
                   id="ef-last"
                   value={form.lastName}
                   onChange={(e) => set('lastName', e.target.value)}
-                  placeholder="Martínez"
+                  placeholder="Gómez Restrepo"
                   invalid={!!errors.lastName}
                 />
                 {errors.lastName && <FieldHint invalid>{errors.lastName}</FieldHint>}
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="ef-doctype">Tipo de documento</Label>
-                <Select
-                  id="ef-doctype"
-                  value={form.documentType}
-                  onChange={(e) => set('documentType', e.target.value as DocumentType)}
-                >
-                  <option value="CC">Cédula de Ciudadanía (CC)</option>
-                  <option value="CE">Cédula de Extranjería (CE)</option>
-                  <option value="TI">Tarjeta de Identidad (TI)</option>
-                  <option value="PA">Pasaporte (PA)</option>
-                  <option value="PEP">Permiso Especial (PEP)</option>
-                  <option value="PPT">Permiso Protección Temporal (PPT)</option>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="ef-document" required>
-                  Número de documento
-                </Label>
-                <Input
-                  id="ef-document"
-                  value={form.document}
-                  onChange={(e) => set('document', e.target.value)}
-                  placeholder="1032456789"
-                  invalid={!!errors.document}
-                />
-                {errors.document && <FieldHint invalid>{errors.document}</FieldHint>}
-              </div>
-              <div>
-                <Label htmlFor="ef-issue-place">Lugar de expedición</Label>
-                <Input
-                  id="ef-issue-place"
-                  value={form.documentIssuePlace}
-                  onChange={(e) => set('documentIssuePlace', e.target.value)}
-                  placeholder="Bogotá D.C."
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-4">
+            {/* Datos demográficos */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <Label htmlFor="ef-birth">Fecha de nacimiento</Label>
                 <Input
@@ -420,80 +426,92 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
           </div>
         )}
 
-        {/* TAB 2: CONTACTO, UBICACIÓN & EMERGENCIA */}
+        {/* TAB 2: CONTACTO & UBICACIÓN */}
         {activeTab === 'contacto' && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="ef-mobile" required>
-                  Celular principal
-                </Label>
-                <Input
-                  id="ef-mobile"
-                  value={form.mobile}
-                  onChange={(e) => set('mobile', e.target.value)}
-                  placeholder="311 456 7788"
-                  invalid={!!errors.mobile}
-                />
-                {errors.mobile && <FieldHint invalid>{errors.mobile}</FieldHint>}
-              </div>
-              <div>
-                <Label htmlFor="ef-phone">Teléfono fijo</Label>
-                <Input
-                  id="ef-phone"
-                  value={form.phone}
-                  onChange={(e) => set('phone', e.target.value)}
-                  placeholder="601 448 1122"
-                />
-              </div>
-              <div>
-                <Label htmlFor="ef-email">Correo electrónico</Label>
-                <Input
-                  id="ef-email"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set('email', e.target.value)}
-                  placeholder="empleado@empresa.com"
-                  invalid={!!errors.email}
-                />
-                {errors.email && <FieldHint invalid>{errors.email}</FieldHint>}
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                Canales de comunicación directa
+              </Label>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="ef-mobile" required>
+                    Celular principal (WhatsApp)
+                  </Label>
+                  <Input
+                    id="ef-mobile"
+                    value={form.mobile}
+                    onChange={(e) => set('mobile', e.target.value)}
+                    placeholder="311 456 7788"
+                    invalid={!!errors.mobile}
+                  />
+                  {errors.mobile && <FieldHint invalid>{errors.mobile}</FieldHint>}
+                </div>
+                <div>
+                  <Label htmlFor="ef-phone">Teléfono fijo / secundario</Label>
+                  <Input
+                    id="ef-phone"
+                    value={form.phone}
+                    onChange={(e) => set('phone', e.target.value)}
+                    placeholder="601 448 1122"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ef-email">Correo electrónico</Label>
+                  <Input
+                    id="ef-email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => set('email', e.target.value)}
+                    placeholder="colaborador@qubitpos.com"
+                    invalid={!!errors.email}
+                  />
+                  {errors.email && <FieldHint invalid>{errors.email}</FieldHint>}
+                </div>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-4">
-              <div className="sm:col-span-2">
-                <Label htmlFor="ef-address">Dirección de residencia</Label>
-                <Input
-                  id="ef-address"
-                  value={form.address}
-                  onChange={(e) => set('address', e.target.value)}
-                  placeholder="Calle 80 #14-22"
-                />
-              </div>
-              <div>
-                <Label htmlFor="ef-neighborhood">Barrio / Sector</Label>
-                <Input
-                  id="ef-neighborhood"
-                  value={form.neighborhood}
-                  onChange={(e) => set('neighborhood', e.target.value)}
-                  placeholder="Chapinero"
-                />
-              </div>
-              <div>
-                <Label htmlFor="ef-city">Ciudad / Municipio</Label>
-                <Select id="ef-city" value={form.city} onChange={(e) => set('city', e.target.value)}>
-                  {cities.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                Dirección y residencia
+              </Label>
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="ef-address">Dirección completa</Label>
+                  <Input
+                    id="ef-address"
+                    value={form.address}
+                    onChange={(e) => set('address', e.target.value)}
+                    placeholder="Cra 45 # 128 - 20 Apto 402"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ef-neighborhood">Barrio / Sector</Label>
+                  <Input
+                    id="ef-neighborhood"
+                    value={form.neighborhood}
+                    onChange={(e) => set('neighborhood', e.target.value)}
+                    placeholder="La Castellana"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ef-city">Ciudad / Municipio</Label>
+                  <Select id="ef-city" value={form.city} onChange={(e) => set('city', e.target.value)}>
+                    {cities.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
             </div>
 
             {/* Contacto de Emergencia */}
-            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 space-y-3">
-              <p className="text-xs font-semibold text-foreground">Contacto en Caso de Emergencia</p>
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                Contacto en caso de emergencia
+              </Label>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="ef-emerg-name">Nombre completo</Label>
@@ -511,16 +529,16 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
                     value={form.emergencyContactRelationship}
                     onChange={(e) => set('emergencyContactRelationship', e.target.value)}
                   >
-                    <option>Cónyuge</option>
+                    <option>Cónyuge / Pareja</option>
                     <option>Padre / Madre</option>
                     <option>Hermano / Hermana</option>
                     <option>Hijo / Hija</option>
                     <option>Familiar cercano</option>
-                    <option>Amigo / Referencia</option>
+                    <option>Referencia personal</option>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="ef-emerg-phone">Teléfono de contacto</Label>
+                  <Label htmlFor="ef-emerg-phone">Teléfono de emergencia</Label>
                   <Input
                     id="ef-emerg-phone"
                     value={form.emergencyContactPhone}
@@ -533,21 +551,14 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
           </div>
         )}
 
-        {/* TAB 3: LABORAL & CONTRATO (INCLUYE ESTADO EN HORIZONTAL) */}
+        {/* TAB 3: LABORAL & CONTRATO */}
         {activeTab === 'laboral' && (
-          <div className="space-y-5 animate-in fade-in-50 duration-150">
-            {/* ESTADO LABORAL EN HORIZONTAL */}
-            <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-foreground">
-                  Estado laboral del empleado
-                </Label>
-                <span className="text-[11px] text-muted-foreground">
-                  Controla la disponibilidad en POS, turnos y nómina
-                </span>
-              </div>
-
-              {/* Botones de estado alineados en fila horizontal */}
+          <div className="space-y-4 animate-in fade-in-50 duration-150">
+            {/* Estado del Empleado - Horizontal Selector */}
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                Estado laboral del colaborador
+              </Label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full">
                 {(Object.keys(statusLabel) as EmployeeStatus[]).map((value) => {
                   const selected = form.status === value
@@ -558,16 +569,10 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
                       onClick={() => set('status', value)}
                       aria-pressed={selected}
                       className={cn(
-                        'flex h-11 items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all duration-150 select-none shadow-2xs',
+                        'flex h-11 items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all select-none',
                         selected
-                          ? value === 'activo'
-                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 ring-2 ring-emerald-500/20'
-                            : value === 'inactivo'
-                              ? 'border-slate-500 bg-slate-500/15 text-slate-700 dark:text-slate-300 ring-2 ring-slate-500/20'
-                              : value === 'suspendido'
-                                ? 'border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-400 ring-2 ring-amber-500/20'
-                                : 'border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-400 ring-2 ring-sky-500/20'
-                          : 'border-border/70 bg-card text-muted-foreground hover:bg-muted/70 hover:text-foreground',
+                          ? 'border-foreground bg-foreground text-background shadow-xs'
+                          : 'border-border/80 bg-card text-foreground/80 hover:bg-muted hover:text-foreground'
                       )}
                     >
                       {selected && <Check className="size-4 shrink-0 stroke-[2.5]" aria-hidden />}
@@ -728,103 +733,104 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
           </div>
         )}
 
-        {/* TAB 4: SEGURIDAD SOCIAL & PILA */}
-        {activeTab === 'seguridad' && (
+        {/* TAB 4: SEGURIDAD SOCIAL (PILA) & POS */}
+        {activeTab === 'seguridad_pos' && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="ef-eps">EPS (Salud)</Label>
-                <Select id="ef-eps" value={form.eps} onChange={(e) => set('eps', e.target.value)}>
-                  {epsList.map((eps) => (
-                    <option key={eps} value={eps}>
-                      {eps}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+            {/* Seguridad Social PILA */}
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                Seguridad social integral (PILA)
+              </Label>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="ef-eps">EPS (Salud)</Label>
+                  <Select id="ef-eps" value={form.eps} onChange={(e) => set('eps', e.target.value)}>
+                    {epsList.map((eps) => (
+                      <option key={eps} value={eps}>
+                        {eps}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
 
-              <div>
-                <Label htmlFor="ef-pension">Fondo de Pensiones</Label>
-                <Select
-                  id="ef-pension"
-                  value={form.pension}
-                  onChange={(e) => set('pension', e.target.value)}
-                >
-                  {pensionFunds.map((pf) => (
-                    <option key={pf} value={pf}>
-                      {pf}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+                <div>
+                  <Label htmlFor="ef-pension">Fondo de Pensiones</Label>
+                  <Select
+                    id="ef-pension"
+                    value={form.pension}
+                    onChange={(e) => set('pension', e.target.value)}
+                  >
+                    {pensionFunds.map((pf) => (
+                      <option key={pf} value={pf}>
+                        {pf}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
 
-              <div>
-                <Label htmlFor="ef-cesantias">Fondo de Cesantías</Label>
-                <Select
-                  id="ef-cesantias"
-                  value={form.cesantias}
-                  onChange={(e) => set('cesantias', e.target.value)}
-                >
-                  {cesantiasFunds.map((cf) => (
-                    <option key={cf} value={cf}>
-                      {cf}
-                    </option>
-                  ))}
-                </Select>
+                <div>
+                  <Label htmlFor="ef-cesantias">Fondo de Cesantías</Label>
+                  <Select
+                    id="ef-cesantias"
+                    value={form.cesantias}
+                    onChange={(e) => set('cesantias', e.target.value)}
+                  >
+                    {cesantiasFunds.map((cf) => (
+                      <option key={cf} value={cf}>
+                        {cf}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="ef-arl">ARL (Riesgos Laborales)</Label>
+                  <Select id="ef-arl" value={form.arl} onChange={(e) => set('arl', e.target.value)}>
+                    {arlList.map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="ef-arl-risk">Nivel de Riesgo ARL</Label>
+                  <Select
+                    id="ef-arl-risk"
+                    value={form.arlRisk}
+                    onChange={(e) => set('arlRisk', e.target.value)}
+                  >
+                    {arlRisks.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="ef-caja-comp">Caja de Compensación</Label>
+                  <Select
+                    id="ef-caja-comp"
+                    value={form.cajaCompensacion}
+                    onChange={(e) => set('cajaCompensacion', e.target.value)}
+                  >
+                    {cajasCompensacion.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="ef-arl">ARL (Riesgos Laborales)</Label>
-                <Select id="ef-arl" value={form.arl} onChange={(e) => set('arl', e.target.value)}>
-                  {arlList.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="ef-arl-risk">Nivel de Riesgo ARL</Label>
-                <Select
-                  id="ef-arl-risk"
-                  value={form.arlRisk}
-                  onChange={(e) => set('arlRisk', e.target.value)}
-                >
-                  {arlRisks.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="ef-caja-comp">Caja de Compensación Familiar</Label>
-                <Select
-                  id="ef-caja-comp"
-                  value={form.cajaCompensacion}
-                  onChange={(e) => set('cajaCompensacion', e.target.value)}
-                >
-                  {cajasCompensacion.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: DISPERSIÓN BANCARIA & POS */}
-        {activeTab === 'pago_pos' && (
-          <div className="space-y-4 animate-in fade-in-50 duration-150">
-            {/* Bancos */}
-            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 space-y-3">
-              <p className="text-xs font-semibold text-foreground">Dispersión de Nómina y Cuenta Bancaria</p>
+            {/* Dispersión Bancaria */}
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+                Dispersión de nómina y cuenta bancaria
+              </Label>
               <div className="grid gap-3 sm:grid-cols-4">
                 <div>
                   <Label htmlFor="ef-pay-method">Método de pago</Label>
@@ -874,10 +880,12 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
               </div>
             </div>
 
-            {/* Terminal POS & Seguridad */}
-            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 space-y-3">
+            {/* Acceso POS & Observaciones */}
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-foreground">Acceso a Terminal POS & Cajas</p>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                  Acceso al sistema POS & Cajas
+                </Label>
                 <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                   <input
                     type="checkbox"
@@ -897,7 +905,7 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
                       id="ef-username"
                       value={form.username}
                       onChange={(e) => set('username', e.target.value)}
-                      placeholder="lmartinez"
+                      placeholder="cgomez"
                     />
                   </div>
                   <div>
@@ -928,38 +936,31 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
                 </div>
               )}
             </div>
-          </div>
-        )}
 
-        {/* TAB 6: NOTAS & OBSERVACIONES */}
-        {activeTab === 'notas' && (
-          <div className="space-y-4 animate-in fade-in-50 duration-150">
             <div>
               <Label htmlFor="ef-notes">Observaciones internas y dotación</Label>
               <Textarea
                 id="ef-notes"
                 value={form.notes}
                 onChange={(e) => set('notes', e.target.value)}
-                placeholder="Registro de dotación entregada, certificados médicos ocupacionales, observaciones contractuales o restricciones..."
-                rows={6}
+                placeholder="Registro de dotación entregada, certificados médicos ocupacionales o restricciones..."
+                rows={3}
               />
             </div>
           </div>
         )}
       </div>
 
-      {/* Footer Actions */}
-      <div className="mt-3 flex items-center justify-between border-t border-border/70 pt-4">
-        <div className="flex gap-2 text-xs text-muted-foreground">
-          <span>Campos con (*) son obligatorios</span>
-        </div>
+      {/* Footer Actions matching customer-form */}
+      <div className="flex items-center justify-between border-t border-border/70 pt-4 mt-2">
+        <span className="text-xs text-muted-foreground">Campos con (*) son obligatorios</span>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" onClick={onCancel} className="rounded-xl">
             Cancelar
           </Button>
-          <Button type="submit" variant="navy" className="rounded-xl px-5 bg-foreground text-background font-semibold">
-            <UserCog className="size-4" />
-            Guardar Empleado
+          <Button type="submit" variant="primary" className="rounded-xl px-5 font-semibold">
+            <UserPlus className="size-4" />
+            <span>{initial ? 'Guardar cambios' : 'Registrar empleado'}</span>
           </Button>
         </div>
       </div>

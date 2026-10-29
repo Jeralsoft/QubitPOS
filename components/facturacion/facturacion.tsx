@@ -4,6 +4,7 @@ import * as React from 'react'
 import {
   Plus,
   Download,
+  Upload,
   RefreshCw,
   Search,
   FileText,
@@ -16,13 +17,8 @@ import {
   Printer,
   Send,
   Ban,
-  MoreHorizontal,
-  ChevronUp,
-  ChevronDown,
-  ChevronsUpDown,
-  ChevronLeft,
-  ChevronRight,
   FileX,
+  ShieldCheck,
 } from 'lucide-react'
 import { Button } from '@/components/jeralpos/button'
 import { Input, Select, Label } from '@/components/jeralpos/input'
@@ -37,7 +33,12 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TableSkeleton,
 } from '@/components/jeralpos/table'
+import { SortButton } from '@/components/jeralpos/sort-button'
+import { RowActionsMenu } from '@/components/jeralpos/row-actions'
+import { Pagination } from '@/components/jeralpos/pagination'
+import { DataToast } from '@/components/jeralpos/data-toast'
 import { cn } from '@/lib/utils'
 import {
   invoices as seedInvoices,
@@ -57,159 +58,7 @@ import { InvoicePdf } from './invoice-pdf'
 type SortKey = 'number' | 'date' | 'customer' | 'total'
 type SortDir = 'asc' | 'desc'
 type ToastKind = 'success' | 'error'
-const PAGE_SIZE = 6
-
-function SortButton({
-  label,
-  active,
-  dir,
-  onClick,
-  className,
-}: {
-  label: string
-  active: boolean
-  dir: SortDir
-  onClick: () => void
-  className?: string
-}) {
-  const Icon = !active ? ChevronsUpDown : dir === 'asc' ? ChevronUp : ChevronDown
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide transition-colors hover:text-foreground',
-        active ? 'text-foreground' : 'text-muted-foreground',
-        className,
-      )}
-    >
-      {label}
-      <Icon className="size-3.5" aria-hidden />
-    </button>
-  )
-}
-
-function RowActions({
-  invoice,
-  onView,
-  onPreview,
-  onSend,
-  onVoid,
-}: {
-  invoice: Invoice
-  onView: () => void
-  onPreview: () => void
-  onSend: () => void
-  onVoid: () => void
-}) {
-  const [open, setOpen] = React.useState(false)
-  const ref = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    if (!open) return
-    const onClick = (ev: MouseEvent) => {
-      if (ref.current && !ref.current.contains(ev.target as Node)) setOpen(false)
-    }
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onClick)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  const item =
-    'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-accent [&_svg]:size-4 [&_svg]:text-muted-foreground'
-
-  const act = (fn: () => void) => () => {
-    setOpen(false)
-    fn()
-  }
-
-  const canSend =
-    invoice.electronic.dianStatus === 'no_enviado' || invoice.electronic.dianStatus === 'rechazado'
-  const canVoid = invoice.status !== 'anulada'
-
-  return (
-    <div className="relative flex justify-end" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`Acciones para ${invoice.number}`}
-        className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4"
-      >
-        <MoreHorizontal />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-9 z-20 w-44 rounded-lg border border-border bg-card p-1 shadow-lg animate-in fade-in zoom-in-95 duration-100"
-        >
-          <button role="menuitem" className={item} onClick={act(onView)}>
-            <Eye />
-            Ver detalle
-          </button>
-          <button role="menuitem" className={item} onClick={act(onPreview)}>
-            <Printer />
-            Ver PDF
-          </button>
-          <button
-            role="menuitem"
-            className={cn(item, !canSend && 'pointer-events-none opacity-40')}
-            onClick={act(onSend)}
-          >
-            <Send />
-            Enviar
-          </button>
-          <div className="my-1 h-px bg-border" />
-          <button
-            role="menuitem"
-            className={cn(
-              'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-danger transition-colors hover:bg-danger-muted [&_svg]:size-4',
-              !canVoid && 'pointer-events-none opacity-40',
-            )}
-            onClick={act(onVoid)}
-          >
-            <Ban />
-            Anular
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TableSkeleton() {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {Array.from({ length: 9 }).map((_, i) => (
-            <TableHead key={i}>
-              <span className="sr-only">Cargando</span>
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {Array.from({ length: 6 }).map((_, r) => (
-          <TableRow key={r}>
-            {Array.from({ length: 9 }).map((_, c) => (
-              <TableCell key={c}>
-                <div className="h-4 w-full max-w-[110px] animate-pulse rounded bg-muted" />
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
-}
+const PAGE_SIZE = 8
 
 export function Facturacion() {
   const [items, setItems] = React.useState<Invoice[]>(seedInvoices)
@@ -225,6 +74,7 @@ export function Facturacion() {
   const [sortKey, setSortKey] = React.useState<SortKey>('date')
   const [sortDir, setSortDir] = React.useState<SortDir>('desc')
   const [page, setPage] = React.useState(1)
+  const [selected, setSelected] = React.useState<Set<string>>(new Set())
 
   const [detail, setDetail] = React.useState<Invoice | null>(null)
   const [pdf, setPdf] = React.useState<Invoice | null>(null)
@@ -232,13 +82,13 @@ export function Facturacion() {
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
 
   React.useEffect(() => {
-    const t = window.setTimeout(() => setLoading(false), 700)
+    const t = window.setTimeout(() => setLoading(false), 500)
     return () => window.clearTimeout(t)
   }, [])
 
   const showToast = React.useCallback((msg: string, kind: ToastKind = 'success') => {
     setToast({ msg, kind })
-    window.setTimeout(() => setToast(null), 2800)
+    window.setTimeout(() => setToast(null), 3000)
   }, [])
 
   const summary = React.useMemo(() => getSummary(items), [items])
@@ -246,102 +96,96 @@ export function Facturacion() {
   const indicators: Indicator[] = React.useMemo(
     () => [
       {
-        id: 'today',
-        icon: CalendarDays,
-        label: 'Facturas del día',
-        value: String(summary.today),
-        description: 'Emitidas hoy',
+        id: 'billed',
+        icon: CircleDollarSign,
+        label: 'Total facturado',
+        value: formatCurrency(summary.billed),
+        description: `${summary.month} facturas este mes`,
         tone: 'primary',
         trend: 'up',
-        comparison: '+3',
+        comparison: 'Ventas brutas',
       },
       {
-        id: 'month',
-        icon: FileText,
-        label: 'Facturas del mes',
-        value: String(summary.month),
-        description: 'Septiembre 2026',
+        id: 'today',
+        icon: CalendarDays,
+        label: 'Facturación hoy',
+        value: `${summary.today} docs`,
+        description: 'Emitidas el día actual',
         tone: 'primary',
         trend: 'up',
-        comparison: '+12%',
+        comparison: 'Actividad diaria',
       },
       {
         id: 'accepted',
         icon: CheckCircle2,
-        label: 'Aceptadas',
+        label: 'Aceptadas DIAN',
         value: String(summary.accepted),
-        description: 'Validadas por la DIAN',
+        description: 'Con CUFE válido emitido',
         tone: 'success',
         trend: 'up',
-        comparison: '+5',
+        comparison: 'Validación DIAN 100%',
       },
       {
         id: 'pending',
         icon: Clock,
-        label: 'Pendientes',
-        value: String(summary.pending),
-        description: 'Por enviar o en proceso',
-        tone: 'warning',
+        label: 'Pendientes o en cola',
+        value: String(summary.pending + summary.rejected),
+        description: summary.rejected > 0 ? `${summary.rejected} con rechazo` : 'En espera de envío',
+        tone: summary.rejected > 0 ? 'danger' : 'warning',
         trend: 'flat',
-        comparison: 'Sin cambios',
-      },
-      {
-        id: 'rejected',
-        icon: XCircle,
-        label: 'Rechazadas',
-        value: String(summary.rejected),
-        description: 'Requieren corrección',
-        tone: 'danger',
-        trend: 'down',
-        comparison: '-1',
-      },
-      {
-        id: 'billed',
-        icon: CircleDollarSign,
-        label: 'Valor facturado',
-        value: formatCurrency(summary.billed),
-        description: 'Total del mes',
-        tone: 'success',
-        trend: 'up',
-        comparison: '+8.4%',
+        comparison: 'Requieren atención',
       },
     ],
-    [summary],
+    [summary]
   )
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    const cq = customerQuery.trim().toLowerCase()
-    const dq = documentQuery.replace(/[.\s-]/g, '').toLowerCase()
-    const result = items.filter((inv) => {
-      if (q && !inv.number.toLowerCase().includes(q)) return false
-      if (cq && !inv.customer.name.toLowerCase().includes(cq)) return false
-      if (dq && !inv.customer.document.replace(/[.\s-]/g, '').toLowerCase().includes(dq))
-        return false
-      if (dateFrom && inv.date < dateFrom) return false
-      if (dateTo && inv.date > dateTo) return false
-      if (status !== 'all' && inv.status !== status) return false
-      return true
-    })
+    const cQ = customerQuery.trim().toLowerCase()
+    const dQ = documentQuery.trim().toLowerCase()
 
-    const sorted = [...result].sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'number') cmp = a.number.localeCompare(b.number)
-      else if (sortKey === 'date') cmp = (a.date + a.time).localeCompare(b.date + b.time)
-      else if (sortKey === 'customer') cmp = a.customer.name.localeCompare(b.customer.name)
-      else if (sortKey === 'total') cmp = computeTotals(a.items).total - computeTotals(b.items).total
-      return sortDir === 'asc' ? cmp : -cmp
-    })
-    return sorted
+    return items
+      .filter((inv) => {
+        if (q && !inv.number.toLowerCase().includes(q)) return false
+        if (cQ && !inv.customer.name.toLowerCase().includes(cQ)) return false
+        if (dQ && !inv.customer.document.toLowerCase().includes(dQ)) return false
+        if (dateFrom && inv.date < dateFrom) return false
+        if (dateTo && inv.date > dateTo) return false
+        if (status !== 'all' && inv.status !== status) return false
+        return true
+      })
+      .sort((a, b) => {
+        let diff = 0
+        if (sortKey === 'number') diff = a.number.localeCompare(b.number)
+        else if (sortKey === 'date') diff = `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)
+        else if (sortKey === 'customer') diff = a.customer.name.localeCompare(b.customer.name, 'es')
+        else if (sortKey === 'total') diff = computeTotals(a.items).total - computeTotals(b.items).total
+        return sortDir === 'asc' ? diff : -diff
+      })
   }, [items, query, customerQuery, documentQuery, dateFrom, dateTo, status, sortKey, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
-  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const paged = React.useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  )
 
-  React.useEffect(() => {
-    setPage(1)
-  }, [query, customerQuery, documentQuery, dateFrom, dateTo, status])
+  const allSelected = paged.length > 0 && paged.every((i) => selected.has(i.id))
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(paged.map((i) => i.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSelected(next)
+  }
 
   const hasFilters =
     query !== '' ||
@@ -358,6 +202,7 @@ export function Facturacion() {
     setDateFrom('')
     setDateTo('')
     setStatus('all')
+    setPage(1)
   }
 
   const toggleSort = (key: SortKey) => {
@@ -387,19 +232,42 @@ export function Facturacion() {
                     .join(''),
               },
             }
-          : x,
-      ),
+          : x
+      )
     )
     setDetail((d) => (d && d.id === inv.id ? { ...d, status: 'enviada' } : d))
     showToast(`Factura ${inv.number} enviada a la DIAN`)
   }
 
+  const handleBulkSendDian = () => {
+    setItems((prev) =>
+      prev.map((x) =>
+        selected.has(x.id) && (x.electronic.dianStatus === 'no_enviado' || x.electronic.dianStatus === 'rechazado')
+          ? {
+              ...x,
+              status: 'enviada',
+              electronic: {
+                ...x.electronic,
+                dianStatus: 'en_proceso',
+                sentAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                message: 'Transmitido por lote a servidores DIAN.',
+              },
+            }
+          : x
+      )
+    )
+    showToast(`Transmitiendo ${selected.size} facturas en lote a la DIAN`)
+    setSelected(new Set())
+  }
+
+  const handleBulkExport = () => {
+    showToast(`Descargando archivo comprimido ZIP con las ${selected.size} facturas seleccionadas`)
+  }
+
   const handleVoid = () => {
     if (!toVoid) return
-    setItems((prev) =>
-      prev.map((x) => (x.id === toVoid.id ? { ...x, status: 'anulada' } : x)),
-    )
-    showToast(`Factura ${toVoid.number} anulada`)
+    setItems((prev) => prev.map((x) => (x.id === toVoid.id ? { ...x, status: 'anulada' } : x)))
+    showToast(`Factura ${toVoid.number} anulada correctamente`, 'error')
     setToVoid(null)
     setDetail(null)
   }
@@ -409,34 +277,40 @@ export function Facturacion() {
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Facturación</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Facturación Electrónica DIAN
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Consulta y administra tus documentos de venta.
+            Consulta, emisión, transmisión DIAN, validación CUFE y administración de comprobantes fiscales.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="md" onClick={() => showToast('Exportando facturas...')}>
+          <Button variant="outline" size="sm" onClick={() => showToast('Importación de facturas electrónicas XML/JSON')}>
+            <Upload />
+            Importar
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => showToast('Exportando reporte de facturación a Excel')}>
             <Download />
             Exportar
           </Button>
           <Button
             variant="outline"
-            size="md"
+            size="sm"
             onClick={() => {
               setLoading(true)
               window.setTimeout(() => {
                 setLoading(false)
-                showToast('Datos actualizados')
-              }, 650)
+                showToast('Facturas sincronizadas con la DIAN')
+              }, 450)
             }}
           >
-            <RefreshCw />
+            <RefreshCw className={loading ? 'animate-spin' : ''} />
             Actualizar
           </Button>
           <Button
             variant="primary"
             size="md"
-            onClick={() => showToast('Abriendo generador de facturas...')}
+            onClick={() => showToast('Abriendo punto de venta para nueva factura...')}
           >
             <Plus />
             Nueva factura
@@ -445,43 +319,52 @@ export function Facturacion() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {indicators.map((ind) => (
           <IndicatorCard key={ind.id} indicator={ind} />
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Filters Toolbar */}
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div>
-            <Label htmlFor="f-number">Número</Label>
+            <Label htmlFor="f-number">Número de factura</Label>
             <Input
               id="f-number"
               leadingIcon={<Search />}
-              placeholder="FE-1042"
+              placeholder="ej. FE-1042"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setPage(1)
+              }}
             />
           </div>
           <div>
-            <Label htmlFor="f-customer">Cliente</Label>
+            <Label htmlFor="f-customer">Cliente / Razón Social</Label>
             <Input
               id="f-customer"
               leadingIcon={<Search />}
-              placeholder="Nombre o razón social"
+              placeholder="Nombre de cliente"
               value={customerQuery}
-              onChange={(e) => setCustomerQuery(e.target.value)}
+              onChange={(e) => {
+                setCustomerQuery(e.target.value)
+                setPage(1)
+              }}
             />
           </div>
           <div>
-            <Label htmlFor="f-document">Documento</Label>
+            <Label htmlFor="f-document">Identificación (NIT / CC)</Label>
             <Input
               id="f-document"
               leadingIcon={<Search />}
-              placeholder="NIT o cédula"
+              placeholder="Número de cédula o NIT"
               value={documentQuery}
-              onChange={(e) => setDocumentQuery(e.target.value)}
+              onChange={(e) => {
+                setDocumentQuery(e.target.value)
+                setPage(1)
+              }}
             />
           </div>
           <div>
@@ -490,7 +373,10 @@ export function Facturacion() {
               id="f-from"
               type="date"
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(e) => {
+                setDateFrom(e.target.value)
+                setPage(1)
+              }}
             />
           </div>
           <div>
@@ -499,15 +385,21 @@ export function Facturacion() {
               id="f-to"
               type="date"
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(e) => {
+                setDateTo(e.target.value)
+                setPage(1)
+              }}
             />
           </div>
           <div>
-            <Label htmlFor="f-status">Estado</Label>
+            <Label htmlFor="f-status">Estado de factura</Label>
             <Select
               id="f-status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as InvoiceStatus | 'all')}
+              onChange={(e) => {
+                setStatus(e.target.value as InvoiceStatus | 'all')
+                setPage(1)
+              }}
             >
               <option value="all">Todos los estados</option>
               {(Object.keys(statusLabel) as InvoiceStatus[]).map((s) => (
@@ -519,7 +411,7 @@ export function Facturacion() {
           </div>
         </div>
         {hasFilters && (
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex justify-end border-t border-border pt-3">
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <XCircle />
               Limpiar filtros
@@ -528,247 +420,264 @@ export function Facturacion() {
         )}
       </div>
 
-      {/* Result count */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          {filtered.length} {filtered.length === 1 ? 'factura' : 'facturas'}
-        </span>
-      </div>
-
-      {/* Table */}
-      {loading ? (
-        <TableSkeleton />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <SortButton
-                  label="Número"
-                  active={sortKey === 'number'}
-                  dir={sortDir}
-                  onClick={() => toggleSort('number')}
-                />
-              </TableHead>
-              <TableHead className="hidden sm:table-cell">
-                <SortButton
-                  label="Fecha"
-                  active={sortKey === 'date'}
-                  dir={sortDir}
-                  onClick={() => toggleSort('date')}
-                />
-              </TableHead>
-              <TableHead>
-                <SortButton
-                  label="Cliente"
-                  active={sortKey === 'customer'}
-                  dir={sortDir}
-                  onClick={() => toggleSort('customer')}
-                />
-              </TableHead>
-              <TableHead className="hidden lg:table-cell">Documento</TableHead>
-              <TableHead className="hidden text-right lg:table-cell">Subtotal</TableHead>
-              <TableHead className="hidden text-right xl:table-cell">Impuestos</TableHead>
-              <TableHead className="text-right">
-                <SortButton
-                  label="Total"
-                  active={sortKey === 'total'}
-                  dir={sortDir}
-                  onClick={() => toggleSort('total')}
-                  className="justify-end"
-                />
-              </TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="hidden text-right md:table-cell">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paged.map((inv) => {
-              const totals = computeTotals(inv.items)
-              return (
-                <TableRow key={inv.id}>
-                  <TableCell>
-                    <button
-                      type="button"
-                      onClick={() => setDetail(inv)}
-                      className="font-mono text-sm font-medium text-primary underline-offset-2 hover:underline"
-                    >
-                      {inv.number}
-                    </button>
-                    <p className="text-xs text-muted-foreground sm:hidden">{inv.date}</p>
-                  </TableCell>
-                  <TableCell className="hidden whitespace-nowrap tabular-nums text-muted-foreground sm:table-cell">
-                    {inv.date}
-                    <span className="block text-xs">{inv.time}</span>
-                  </TableCell>
-                  <TableCell>
-                    <p className="truncate font-medium text-foreground">{inv.customer.name}</p>
-                    <div className="mt-0.5 flex items-center gap-1.5">
-                      <Badge variant={dianStatusVariant[inv.electronic.dianStatus]} size="sm">
-                        {dianStatusLabel[inv.electronic.dianStatus]}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden font-mono text-xs text-muted-foreground lg:table-cell">
-                    {inv.customer.documentType} {inv.customer.document}
-                  </TableCell>
-                  <TableCell className="hidden text-right tabular-nums text-muted-foreground lg:table-cell">
-                    {formatCurrency(totals.subtotal)}
-                  </TableCell>
-                  <TableCell className="hidden text-right tabular-nums text-muted-foreground xl:table-cell">
-                    {formatCurrency(totals.tax)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-semibold text-foreground">
-                    {formatCurrency(totals.total)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[inv.status]} size="sm" dot>
-                      {statusLabel[inv.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <RowActions
-                      invoice={inv}
-                      onView={() => setDetail(inv)}
-                      onPreview={() => setPdf(inv)}
-                      onSend={() => handleSend(inv)}
-                      onVoid={() => setToVoid(inv)}
-                    />
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-            {paged.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={9}>
-                  <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-                      <FileX className="size-6 text-muted-foreground" aria-hidden />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">
-                      No se encontraron facturas
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {hasFilters
-                        ? 'Ajusta la búsqueda o los filtros aplicados.'
-                        : 'Aún no hay documentos de venta registrados.'}
-                    </p>
-                    {hasFilters && (
-                      <Button variant="outline" size="sm" onClick={clearFilters} className="mt-1">
-                        Limpiar filtros
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
-
-      {/* Pagination */}
-      {!loading && filtered.length > 0 && (
-        <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="text-sm text-muted-foreground">
-            Mostrando{' '}
-            <span className="font-medium text-foreground">
-              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)}
-            </span>{' '}
-            de <span className="font-medium text-foreground">{filtered.length}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft />
-              Anterior
+      {/* Bulk Selection Bar */}
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+          <span className="font-medium text-foreground">
+            {selected.size} {selected.size === 1 ? 'factura seleccionada' : 'facturas seleccionadas'}
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleBulkSendDian}>
+              <Send className="size-4" />
+              Transmitir DIAN en lote
             </Button>
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setPage(i + 1)}
-                aria-current={currentPage === i + 1}
-                className={cn(
-                  'inline-flex size-8 items-center justify-center rounded-md text-sm font-medium transition-colors',
-                  currentPage === i + 1
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Siguiente
-              <ChevronRight />
+            <Button variant="outline" size="sm" onClick={handleBulkExport}>
+              <Download className="size-4" />
+              Descargar ZIP
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+              Cancelar
             </Button>
           </div>
         </div>
       )}
 
+      {/* Result count */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>
+          Mostrando {paged.length} de {filtered.length} facturas
+        </span>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <TableSkeleton columns={9} />
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card py-16 text-center">
+          <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+            <FileX className="size-6 text-muted-foreground" aria-hidden />
+          </div>
+          <div>
+            <p className="font-medium text-foreground">Sin facturas encontradas</p>
+            <p className="text-sm text-muted-foreground">
+              Ajusta los filtros o fechas para ver otros resultados.
+            </p>
+          </div>
+          {hasFilters && (
+            <Button variant="outline" size="sm" onClick={clearFilters}>
+              Limpiar filtros
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Seleccionar todos"
+                    className="size-4 cursor-pointer rounded border-border accent-primary"
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortButton
+                    label="Número"
+                    active={sortKey === 'number'}
+                    dir={sortDir}
+                    onClick={() => toggleSort('number')}
+                  />
+                </TableHead>
+                <TableHead className="hidden sm:table-cell">
+                  <SortButton
+                    label="Fecha / Hora"
+                    active={sortKey === 'date'}
+                    dir={sortDir}
+                    onClick={() => toggleSort('date')}
+                  />
+                </TableHead>
+                <TableHead>
+                  <SortButton
+                    label="Cliente"
+                    active={sortKey === 'customer'}
+                    dir={sortDir}
+                    onClick={() => toggleSort('customer')}
+                  />
+                </TableHead>
+                <TableHead className="hidden lg:table-cell">Documento</TableHead>
+                <TableHead className="hidden text-right lg:table-cell">Subtotal</TableHead>
+                <TableHead className="hidden text-right xl:table-cell">Impuestos</TableHead>
+                <TableHead className="text-right">
+                  <SortButton
+                    label="Total"
+                    active={sortKey === 'total'}
+                    dir={sortDir}
+                    onClick={() => toggleSort('total')}
+                  />
+                </TableHead>
+                <TableHead>Estado DIAN</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paged.map((inv) => {
+                const totals = computeTotals(inv.items)
+                const canSend =
+                  inv.electronic.dianStatus === 'no_enviado' || inv.electronic.dianStatus === 'rechazado'
+                const canVoid = inv.status !== 'anulada'
+
+                return (
+                  <TableRow key={inv.id} data-selected={selected.has(inv.id)}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(inv.id)}
+                        onChange={() => toggleSelect(inv.id)}
+                        aria-label={`Seleccionar ${inv.number}`}
+                        className="size-4 cursor-pointer rounded border-border accent-primary"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => setDetail(inv)}
+                        className="font-mono text-sm font-semibold text-primary underline-offset-2 hover:underline"
+                      >
+                        {inv.number}
+                      </button>
+                      <p className="text-xs text-muted-foreground sm:hidden">{inv.date}</p>
+                    </TableCell>
+                    <TableCell className="hidden whitespace-nowrap tabular-nums text-muted-foreground sm:table-cell">
+                      {inv.date}
+                      <span className="block text-xs text-muted-foreground">{inv.time}</span>
+                    </TableCell>
+                    <TableCell>
+                      <p className="truncate font-medium text-foreground">{inv.customer.name}</p>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <Badge variant={dianStatusVariant[inv.electronic.dianStatus]} size="sm">
+                          {dianStatusLabel[inv.electronic.dianStatus]}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden font-mono text-xs text-muted-foreground lg:table-cell">
+                      {inv.customer.documentType} {inv.customer.document}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums text-muted-foreground lg:table-cell">
+                      {formatCurrency(totals.subtotal)}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums text-muted-foreground xl:table-cell">
+                      {formatCurrency(totals.tax)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-bold text-foreground">
+                      {formatCurrency(totals.total)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant[inv.status]} size="sm" dot>
+                        {statusLabel[inv.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <RowActionsMenu
+                        label={`Acciones para factura ${inv.number}`}
+                        actions={[
+                          {
+                            label: 'Ver detalle',
+                            icon: Eye,
+                            onClick: () => setDetail(inv),
+                          },
+                          {
+                            label: 'Ver PDF fiscal',
+                            icon: Printer,
+                            onClick: () => setPdf(inv),
+                          },
+                          ...(canSend
+                            ? [
+                                {
+                                  label: 'Transmitir a la DIAN',
+                                  icon: Send,
+                                  onClick: () => handleSend(inv),
+                                },
+                              ]
+                            : []),
+                          ...(canVoid
+                            ? [
+                                {
+                                  label: 'Anular factura',
+                                  icon: Ban,
+                                  danger: true,
+                                  dividerBefore: true,
+                                  onClick: () => setToVoid(inv),
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+      )}
+
       {/* Detail modal */}
-      <Modal open={!!detail} onClose={() => setDetail(null)} className="max-w-4xl">
+      <Modal
+        open={detail !== null}
+        onClose={() => setDetail(null)}
+        title={detail ? `Detalle de Factura ${detail.number}` : ''}
+        description={detail ? `Emitida a ${detail.customer.name} · ${detail.date}` : ''}
+        className="max-w-4xl"
+      >
         {detail && (
           <InvoiceDetail
             invoice={detail}
-            onPreview={() => setPdf(detail)}
-            onPrint={() => {
+            onPreview={() => {
               setPdf(detail)
-              showToast('Preparando impresión...')
+              setDetail(null)
             }}
-            onDownload={() => showToast(`Descargando ${detail.number}.pdf`)}
+            onPrint={() => showToast(`Imprimiendo ${detail.number}...`)}
+            onDownload={() => showToast(`Descargando factura electrónica ${detail.number}`)}
             onSend={() => handleSend(detail)}
             onVoid={() => setToVoid(detail)}
           />
         )}
       </Modal>
 
-      {/* PDF preview modal */}
+      {/* PDF modal */}
       <Modal
-        open={!!pdf}
+        open={pdf !== null}
         onClose={() => setPdf(null)}
-        title="Previsualización de factura"
-        description={pdf ? `Representación gráfica de ${pdf.number}` : undefined}
+        title={pdf ? `Vista previa de impresión · ${pdf.number}` : ''}
+        description="Representación gráfica oficial para factura electrónica de venta."
         className="max-w-4xl"
-        footer={
-          pdf ? (
-            <>
-              <Button variant="outline" onClick={() => setPdf(null)}>
-                Cerrar
-              </Button>
-              <Button variant="outline" onClick={() => showToast('Preparando impresión...')}>
-                <Printer />
-                Imprimir
-              </Button>
-              <Button variant="primary" onClick={() => showToast(`Descargando ${pdf.number}.pdf`)}>
-                <Download />
-                Descargar PDF
-              </Button>
-            </>
-          ) : undefined
-        }
       >
         {pdf && <InvoicePdf invoice={pdf} />}
       </Modal>
 
-      {/* Void confirmation */}
+      {/* Void confirmation modal */}
       <Modal
-        open={!!toVoid}
+        open={toVoid !== null}
         onClose={() => setToVoid(null)}
-        title="Anular factura"
+        title="Anular factura electrónica"
         description={
           toVoid
-            ? `¿Seguro que deseas anular la factura "${toVoid.number}"? Esta acción generará una nota crédito y no se puede deshacer.`
-            : undefined
+            ? `¿Confirmas la anulación de la factura ${toVoid.number} de ${toVoid.customer.name}? Se generará la respectiva nota de crédito electrónica.`
+            : ''
         }
         footer={
           <>
@@ -777,26 +686,14 @@ export function Facturacion() {
             </Button>
             <Button variant="danger" onClick={handleVoid}>
               <Ban />
-              Anular factura
+              Confirmar anulación
             </Button>
           </>
         }
       />
 
       {/* Toast */}
-      {toast && (
-        <div
-          role="status"
-          className="fixed bottom-5 right-5 z-[60] flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-lg animate-in fade-in slide-in-from-bottom-2"
-        >
-          {toast.kind === 'success' ? (
-            <CheckCircle2 className="size-4 text-success" aria-hidden />
-          ) : (
-            <XCircle className="size-4 text-danger" aria-hidden />
-          )}
-          {toast.msg}
-        </div>
-      )}
+      {toast && <DataToast message={toast.msg} kind={toast.kind} />}
     </div>
   )
 }

@@ -9,7 +9,6 @@ import {
   UserPlus,
   Search,
   XCircle,
-  MoreHorizontal,
   Pencil,
   Lock,
   Unlock,
@@ -18,12 +17,16 @@ import {
   FileX,
   ShieldCheck,
   History,
-  CheckCircle2,
-  AlertCircle,
+  Upload,
+  Download,
+  RefreshCw,
+  Eye,
+  Check,
 } from 'lucide-react'
 import { Button } from '@/components/jeralpos/button'
 import { Input, Select, Label } from '@/components/jeralpos/input'
 import { Badge } from '@/components/jeralpos/badge'
+import { Modal } from '@/components/jeralpos/modal'
 import { IndicatorCard } from '@/components/dashboard/indicator-card'
 import type { Indicator } from '@/components/dashboard/mock-data'
 import {
@@ -33,7 +36,12 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TableSkeleton,
 } from '@/components/jeralpos/table'
+import { SortButton } from '@/components/jeralpos/sort-button'
+import { RowActionsMenu } from '@/components/jeralpos/row-actions'
+import { Pagination } from '@/components/jeralpos/pagination'
+import { DataToast } from '@/components/jeralpos/data-toast'
 import { cn } from '@/lib/utils'
 import {
   users as seedUsers,
@@ -54,6 +62,8 @@ import { AuditTable } from './audit-table'
 
 type Tab = 'usuarios' | 'roles' | 'seguridad' | 'auditoria'
 type ToastKind = 'success' | 'error'
+type SortKey = 'username' | 'employee' | 'roleId' | 'branch' | 'lastAccess'
+type SortDir = 'asc' | 'desc'
 
 const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: 'usuarios', label: 'Usuarios', icon: Users },
@@ -62,122 +72,7 @@ const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: 'auditoria', label: 'Auditoría', icon: History },
 ]
 
-function RowActions({
-  user,
-  onEdit,
-  onToggleBlock,
-  onResetPassword,
-  onToggleStatus,
-  onDelete,
-}: {
-  user: AppUser
-  onEdit: () => void
-  onToggleBlock: () => void
-  onResetPassword: () => void
-  onToggleStatus: () => void
-  onDelete: () => void
-}) {
-  const [open, setOpen] = React.useState(false)
-  const ref = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    if (!open) return
-    const onClick = (ev: MouseEvent) => {
-      if (ref.current && !ref.current.contains(ev.target as Node)) setOpen(false)
-    }
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onClick)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  const item =
-    'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-accent [&_svg]:size-4 [&_svg]:text-muted-foreground'
-  const act = (fn: () => void) => () => {
-    setOpen(false)
-    fn()
-  }
-  const blocked = user.status === 'bloqueado'
-
-  return (
-    <div className="relative flex justify-end" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`Acciones para ${user.username}`}
-        className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4"
-      >
-        <MoreHorizontal />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-9 z-20 w-52 rounded-lg border border-border bg-card p-1 shadow-lg animate-in fade-in zoom-in-95 duration-100"
-        >
-          <button role="menuitem" className={item} onClick={act(onEdit)}>
-            <Pencil />
-            Editar usuario
-          </button>
-          <button role="menuitem" className={item} onClick={act(onResetPassword)}>
-            <KeyRound />
-            Restablecer contraseña
-          </button>
-          <button role="menuitem" className={item} onClick={act(onToggleStatus)}>
-            {user.status === 'activo' ? <UserX /> : <UserCheck />}
-            {user.status === 'activo' ? 'Desactivar' : 'Activar'}
-          </button>
-          <button role="menuitem" className={item} onClick={act(onToggleBlock)}>
-            {blocked ? <Unlock /> : <Lock />}
-            {blocked ? 'Desbloquear' : 'Bloquear'}
-          </button>
-          <div className="my-1 h-px bg-border" />
-          <button
-            role="menuitem"
-            className={cn(item, 'text-danger [&_svg]:text-danger hover:bg-danger-muted')}
-            onClick={act(onDelete)}
-          >
-            <Trash2 />
-            Eliminar
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TableSkeleton() {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <TableHead key={i}>
-              <span className="sr-only">Cargando</span>
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {Array.from({ length: 8 }).map((_, r) => (
-          <TableRow key={r}>
-            {Array.from({ length: 8 }).map((_, c) => (
-              <TableCell key={c}>
-                <div className="h-4 w-full max-w-[110px] animate-pulse rounded bg-muted" />
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
-}
+const PAGE_SIZE = 8
 
 export function Usuarios() {
   const [tab, setTab] = React.useState<Tab>('usuarios')
@@ -189,17 +84,24 @@ export function Usuarios() {
   const [branchFilter, setBranchFilter] = React.useState<string>('all')
   const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'all'>('all')
 
+  const [selected, setSelected] = React.useState<Set<string>>(new Set())
+  const [page, setPage] = React.useState(1)
+  const [sortKey, setSortKey] = React.useState<SortKey>('username')
+  const [sortDir, setSortDir] = React.useState<SortDir>('asc')
+
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [userToDelete, setUserToDelete] = React.useState<AppUser | null>(null)
+  const [showBulkDelete, setShowBulkDelete] = React.useState(false)
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
 
   React.useEffect(() => {
-    const t = window.setTimeout(() => setLoading(false), 650)
+    const t = window.setTimeout(() => setLoading(false), 500)
     return () => window.clearTimeout(t)
   }, [])
 
   const showToast = React.useCallback((msg: string, kind: ToastKind = 'success') => {
     setToast({ msg, kind })
-    window.setTimeout(() => setToast(null), 2800)
+    window.setTimeout(() => setToast(null), 3000)
   }, [])
 
   const summary = React.useMemo(() => getUsersSummary(items), [items])
@@ -241,18 +143,27 @@ export function Usuarios() {
         icon: MonitorSmartphone,
         label: 'Sesiones activas',
         value: String(summary.activeSessions),
-        description: 'Conectados ahora',
+        description: 'Conectados en tiempo real',
         tone: 'primary',
         trend: 'up',
         comparison: 'En línea',
       },
     ],
-    [summary],
+    [summary]
   )
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    return items.filter((u) => {
+    const result = items.filter((u) => {
       if (roleFilter !== 'all' && u.roleId !== roleFilter) return false
       if (branchFilter !== 'all' && u.branch !== branchFilter) return false
       if (statusFilter !== 'all' && u.status !== statusFilter) return false
@@ -265,7 +176,36 @@ export function Usuarios() {
         return false
       return true
     })
-  }, [items, query, roleFilter, branchFilter, statusFilter])
+
+    return result.sort((a, b) => {
+      let va = String(a[sortKey] ?? '').toLowerCase()
+      let vb = String(b[sortKey] ?? '').toLowerCase()
+      const cmp = va.localeCompare(vb, 'es')
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  }, [items, query, roleFilter, branchFilter, statusFilter, sortKey, sortDir])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = React.useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+
+  const allSelected = paged.length > 0 && paged.every((u) => selected.has(u.id))
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(paged.map((u) => u.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSelected(next)
+  }
 
   const hasFilters =
     query !== '' || roleFilter !== 'all' || branchFilter !== 'all' || statusFilter !== 'all'
@@ -274,6 +214,7 @@ export function Usuarios() {
     setRoleFilter('all')
     setBranchFilter('all')
     setStatusFilter('all')
+    setPage(1)
   }
 
   const handleCreate = (draft: NewUserDraft) => {
@@ -305,6 +246,49 @@ export function Usuarios() {
   const updateUser = (id: string, patch: Partial<AppUser>) =>
     setItems((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)))
 
+  const handleDeleteUser = () => {
+    if (!userToDelete) return
+    setItems((prev) => prev.filter((x) => x.id !== userToDelete.id))
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.delete(userToDelete.id)
+      return next
+    })
+    showToast(`Usuario ${userToDelete.username} eliminado`, 'error')
+    setUserToDelete(null)
+  }
+
+  const handleBulkDelete = () => {
+    setItems((prev) => prev.filter((x) => !selected.has(x.id)))
+    showToast(`${selected.size} usuarios eliminados del sistema`, 'error')
+    setSelected(new Set())
+    setShowBulkDelete(false)
+  }
+
+  const handleBulkToggleStatus = () => {
+    setItems((prev) =>
+      prev.map((u) => (selected.has(u.id) ? { ...u, status: u.status === 'activo' ? 'inactivo' : 'activo' } : u))
+    )
+    showToast(`Estado alternado para ${selected.size} usuarios`)
+    setSelected(new Set())
+  }
+
+  const handleRefresh = () => {
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+      showToast('Datos de usuarios actualizados')
+    }, 400)
+  }
+
+  const handleExport = () => {
+    showToast(`Exportando ${filtered.length} usuarios a formato CSV/Excel`)
+  }
+
+  const handleImport = () => {
+    showToast('Función de importación masiva de usuarios en proceso')
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
@@ -314,15 +298,27 @@ export function Usuarios() {
             Usuarios y Seguridad
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Administra usuarios, roles, permisos y la seguridad del sistema.
+            Administra usuarios, credenciales de acceso, roles, permisos y políticas de seguridad del sistema.
           </p>
         </div>
-        {tab === 'usuarios' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleImport}>
+            <Upload />
+            Importar
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download />
+            Exportar
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <RefreshCw className={loading ? 'animate-spin' : ''} />
+            Actualizar
+          </Button>
           <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
             <UserPlus />
-            Crear usuario
+            Nuevo usuario
           </Button>
-        )}
+        </div>
       </div>
 
       {/* KPIs */}
@@ -347,7 +343,7 @@ export function Usuarios() {
                   'inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors [&_svg]:size-4',
                   active
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
+                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
                 )}
               >
                 <Icon />
@@ -361,7 +357,7 @@ export function Usuarios() {
       {/* Tab content */}
       {tab === 'usuarios' && (
         <>
-          {/* Filters */}
+          {/* Filters Toolbar */}
           <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <div>
@@ -371,7 +367,10 @@ export function Usuarios() {
                   leadingIcon={<Search />}
                   placeholder="Usuario, empleado o correo"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value)
+                    setPage(1)
+                  }}
                 />
               </div>
               <div>
@@ -379,7 +378,10 @@ export function Usuarios() {
                 <Select
                   id="u-role"
                   value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value as RoleId | 'all')}
+                  onChange={(e) => {
+                    setRoleFilter(e.target.value as RoleId | 'all')
+                    setPage(1)
+                  }}
                 >
                   <option value="all">Todos los roles</option>
                   {roles.map((r) => (
@@ -394,7 +396,10 @@ export function Usuarios() {
                 <Select
                   id="u-branch"
                   value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
+                  onChange={(e) => {
+                    setBranchFilter(e.target.value)
+                    setPage(1)
+                  }}
                 >
                   <option value="all">Todas las sucursales</option>
                   {branches.map((b) => (
@@ -409,7 +414,10 @@ export function Usuarios() {
                 <Select
                   id="u-status"
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as UserStatus | 'all')}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as UserStatus | 'all')
+                    setPage(1)
+                  }}
                 >
                   <option value="all">Todos los estados</option>
                   {(Object.keys(statusConfig) as UserStatus[]).map((s) => (
@@ -430,15 +438,41 @@ export function Usuarios() {
             )}
           </div>
 
+          {/* Bulk Selection Bar */}
+          {selected.size > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+              <span className="font-medium text-foreground">
+                {selected.size} {selected.size === 1 ? 'usuario seleccionado' : 'usuarios seleccionados'}
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleBulkToggleStatus}>
+                  Cambiar estado
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBulkDelete(true)}
+                  className="text-danger hover:bg-danger-muted"
+                >
+                  <Trash2 className="size-4" />
+                  Eliminar seleccionados
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              {filtered.length} {filtered.length === 1 ? 'usuario' : 'usuarios'}
+              Mostrando {paged.length} de {filtered.length} usuarios
             </span>
           </div>
 
           {/* Table */}
           {loading ? (
-            <TableSkeleton />
+            <TableSkeleton columns={8} />
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card py-16 text-center">
               <div className="flex size-12 items-center justify-center rounded-full bg-muted">
@@ -457,96 +491,182 @@ export function Usuarios() {
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usuario</TableHead>
-                  <TableHead className="hidden lg:table-cell">Empleado</TableHead>
-                  <TableHead className="hidden xl:table-cell">Correo</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead className="hidden md:table-cell">Sucursal</TableHead>
-                  <TableHead className="hidden lg:table-cell">Último acceso</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((u) => {
-                  const role = roles.find((r) => r.id === u.roleId)
-                  const st = statusConfig[u.status]
-                  return (
-                    <TableRow key={u.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="grid size-9 shrink-0 place-items-center rounded-full bg-info-muted text-xs font-semibold text-primary"
-                            aria-hidden
-                          >
-                            {u.avatarInitials}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground">{u.username}</p>
-                            <p className="text-xs text-muted-foreground lg:hidden">{u.employee}</p>
+            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="Seleccionar todos"
+                        className="size-4 cursor-pointer rounded border-border accent-primary"
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <SortButton
+                        label="Usuario"
+                        active={sortKey === 'username'}
+                        dir={sortDir}
+                        onClick={() => handleSort('username')}
+                      />
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      <SortButton
+                        label="Empleado"
+                        active={sortKey === 'employee'}
+                        dir={sortDir}
+                        onClick={() => handleSort('employee')}
+                      />
+                    </TableHead>
+                    <TableHead className="hidden xl:table-cell">Correo</TableHead>
+                    <TableHead>
+                      <SortButton
+                        label="Rol"
+                        active={sortKey === 'roleId'}
+                        dir={sortDir}
+                        onClick={() => handleSort('roleId')}
+                      />
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      <SortButton
+                        label="Sucursal"
+                        active={sortKey === 'branch'}
+                        dir={sortDir}
+                        onClick={() => handleSort('branch')}
+                      />
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      <SortButton
+                        label="Último acceso"
+                        active={sortKey === 'lastAccess'}
+                        dir={sortDir}
+                        onClick={() => handleSort('lastAccess')}
+                      />
+                    </TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paged.map((u) => {
+                    const role = roles.find((r) => r.id === u.roleId)
+                    const st = statusConfig[u.status]
+                    return (
+                      <TableRow key={u.id} data-selected={selected.has(u.id)}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(u.id)}
+                            onChange={() => toggleSelect(u.id)}
+                            aria-label={`Seleccionar ${u.username}`}
+                            className="size-4 cursor-pointer rounded border-border accent-primary"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <span
+                              className="grid size-9 shrink-0 place-items-center rounded-full bg-info-muted text-xs font-semibold text-primary"
+                              aria-hidden
+                            >
+                              {u.avatarInitials}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground">{u.username}</p>
+                              <p className="text-xs text-muted-foreground lg:hidden">{u.employee}</p>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground lg:table-cell">
-                        {u.employee}
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground xl:table-cell">
-                        {u.email}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={role ? roleToneVariant[role.tone] : 'neutral'} size="sm">
-                          {roleName[u.roleId]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">
-                        {u.branch}
-                      </TableCell>
-                      <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
-                        {u.lastAccess ?? 'Nunca'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={st.variant} size="sm" dot>
-                          {st.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <RowActions
-                          user={u}
-                          onEdit={() => showToast(`Editar ${u.username} (demo)`)}
-                          onResetPassword={() =>
-                            showToast(`Enlace de restablecimiento enviado a ${u.email}`)
-                          }
-                          onToggleStatus={() => {
-                            const next = u.status === 'activo' ? 'inactivo' : 'activo'
-                            updateUser(u.id, { status: next })
-                            showToast(
-                              `${u.username} ${next === 'activo' ? 'activado' : 'desactivado'}`,
-                            )
-                          }}
-                          onToggleBlock={() => {
-                            const next = u.status === 'bloqueado' ? 'activo' : 'bloqueado'
-                            updateUser(u.id, {
-                              status: next,
-                              failedAttempts: next === 'activo' ? 0 : u.failedAttempts,
-                            })
-                            showToast(
-                              `${u.username} ${next === 'bloqueado' ? 'bloqueado' : 'desbloqueado'}`,
-                            )
-                          }}
-                          onDelete={() => {
-                            setItems((prev) => prev.filter((x) => x.id !== u.id))
-                            showToast(`Usuario ${u.username} eliminado`, 'error')
-                          }}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground lg:table-cell">
+                          {u.employee}
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground xl:table-cell">
+                          {u.email}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={role ? roleToneVariant[role.tone] : 'neutral'} size="sm">
+                            {roleName[u.roleId]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground md:table-cell">
+                          {u.branch}
+                        </TableCell>
+                        <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
+                          {u.lastAccess ?? 'Nunca'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={st.variant} size="sm" dot>
+                            {st.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <RowActionsMenu
+                            label={`Acciones para ${u.username}`}
+                            actions={[
+                              {
+                                label: 'Editar usuario',
+                                icon: Pencil,
+                                onClick: () => showToast(`Editar ${u.username} (demo)`),
+                              },
+                              {
+                                label: 'Restablecer contraseña',
+                                icon: KeyRound,
+                                onClick: () =>
+                                  showToast(`Enlace de restablecimiento enviado a ${u.email}`),
+                              },
+                              {
+                                label: u.status === 'activo' ? 'Desactivar' : 'Activar',
+                                icon: u.status === 'activo' ? UserX : UserCheck,
+                                onClick: () => {
+                                  const next = u.status === 'activo' ? 'inactivo' : 'activo'
+                                  updateUser(u.id, { status: next })
+                                  showToast(
+                                    `${u.username} ${next === 'activo' ? 'activado' : 'desactivado'}`
+                                  )
+                                },
+                              },
+                              {
+                                label: u.status === 'bloqueado' ? 'Desbloquear' : 'Bloquear',
+                                icon: u.status === 'bloqueado' ? Unlock : Lock,
+                                onClick: () => {
+                                  const next = u.status === 'bloqueado' ? 'activo' : 'bloqueado'
+                                  updateUser(u.id, {
+                                    status: next,
+                                    failedAttempts: next === 'activo' ? 0 : u.failedAttempts,
+                                  })
+                                  showToast(
+                                    `${u.username} ${next === 'bloqueado' ? 'bloqueado' : 'desbloqueado'}`
+                                  )
+                                },
+                              },
+                              {
+                                label: 'Eliminar',
+                                icon: Trash2,
+                                danger: true,
+                                dividerBefore: true,
+                                onClick: () => setUserToDelete(u),
+                              },
+                            ]}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && filtered.length > 0 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
           )}
         </>
       )}
@@ -561,20 +681,46 @@ export function Usuarios() {
         onCreate={handleCreate}
       />
 
-      {/* Toast */}
-      {toast && (
-        <div
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3 shadow-lg animate-in fade-in slide-in-from-bottom-2"
-          role="status"
-        >
-          {toast.kind === 'success' ? (
-            <CheckCircle2 className="size-5 text-success" aria-hidden />
-          ) : (
-            <AlertCircle className="size-5 text-danger" aria-hidden />
-          )}
-          <span className="text-sm font-medium text-foreground">{toast.msg}</span>
-        </div>
-      )}
+      {/* Delete User Modal */}
+      <Modal
+        open={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        title="Eliminar usuario"
+        description={`¿Estás seguro de que deseas eliminar al usuario "${userToDelete?.username}"? Esta acción revoca todos sus accesos de forma permanente.`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setUserToDelete(null)}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleDeleteUser}>
+              <Trash2 />
+              Eliminar
+            </Button>
+          </>
+        }
+      />
+
+      {/* Bulk Delete Modal */}
+      <Modal
+        open={showBulkDelete}
+        onClose={() => setShowBulkDelete(false)}
+        title="Eliminación masiva de usuarios"
+        description={`¿Estás seguro de que deseas eliminar los ${selected.size} usuarios seleccionados? Esta acción es irreversible.`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowBulkDelete(false)}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleBulkDelete}>
+              <Trash2 />
+              Eliminar seleccionados
+            </Button>
+          </>
+        }
+      />
+
+      {/* DataToast */}
+      {toast && <DataToast message={toast.msg} kind={toast.kind} />}
     </div>
   )
 }

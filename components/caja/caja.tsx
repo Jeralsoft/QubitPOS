@@ -27,6 +27,8 @@ import { Button } from '@/components/jeralpos/button'
 import { Input } from '@/components/jeralpos/input'
 import { Badge } from '@/components/jeralpos/badge'
 import { Card } from '@/components/jeralpos/card'
+import { IndicatorCard } from '@/components/dashboard/indicator-card'
+import type { Indicator } from '@/components/dashboard/mock-data'
 import { Modal } from '@/components/jeralpos/modal'
 import {
   Table,
@@ -245,25 +247,90 @@ export function Caja() {
     showToast('Caja cerrada correctamente')
   }
 
-  /* --- KPI grid --- */
+  /* --- Standard 4 KPI grid + Balance Bar --- */
+
+  const indicators: Indicator[] = [
+    {
+      id: 'ventas',
+      label: 'Ventas en turno',
+      value: formatCurrency(summary.sales),
+      description: 'Facturado en el turno actual',
+      icon: ShoppingCart,
+      tone: 'primary',
+      trend: 'up',
+      comparison: 'En caja',
+    },
+    {
+      id: 'ingresos',
+      label: 'Ingresos adicionales',
+      value: formatCurrency(summary.income),
+      description: 'Aportes y recaudos manuales',
+      icon: TrendingUp,
+      tone: 'success',
+      trend: 'up',
+      comparison: '+Entradas',
+    },
+    {
+      id: 'egresos',
+      label: 'Egresos y gastos',
+      value: formatCurrency(summary.expense),
+      description: 'Salidas y pagos menores',
+      icon: TrendingDown,
+      tone: 'danger',
+      trend: 'down',
+      comparison: '-Salidas',
+    },
+    {
+      id: 'esperado',
+      label: 'Efectivo esperado',
+      value: formatCurrency(summary.cashExpected),
+      description: 'Efectivo en gaveta calculado',
+      icon: Wallet,
+      tone: 'primary',
+      trend: 'flat',
+      comparison: 'Base + Flujo',
+    },
+  ];
 
   const kpis = (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-      <KpiCard icon={PiggyBank} label="Saldo inicial" value={formatCurrency(summary.openingBalance)} tone="neutral" />
-      <KpiCard icon={ShoppingCart} label="Ventas" value={formatCurrency(summary.sales)} tone="primary" />
-      <KpiCard icon={TrendingUp} label="Ingresos" value={formatCurrency(summary.income)} tone="success" />
-      <KpiCard icon={TrendingDown} label="Egresos" value={formatCurrency(summary.expense)} tone="danger" />
-      <KpiCard icon={Scale} label="Saldo esperado" value={formatCurrency(summary.cashExpected)} tone="neutral" hint="Efectivo en caja" />
-      <KpiCard icon={Coins} label="Saldo real" value={formatCurrency(realBalance)} tone="neutral" hint={countedCash === null ? 'Pendiente de arqueo' : 'Según arqueo'} />
-      <KpiCard
-        icon={CircleDollarSign}
-        label="Diferencia"
-        value={formatSignedCurrency(difference)}
-        tone={difference > 0 ? 'warning' : difference < 0 ? 'danger' : 'success'}
-        hint={closingStatusLabel[diffStatus]}
-      />
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {indicators.map((ind) => (
+          <IndicatorCard key={ind.id} indicator={ind} />
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-xs">
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">Saldo base inicial</span>
+            <p className="text-base font-semibold tabular-nums text-foreground">{formatCurrency(summary.openingBalance)}</p>
+          </div>
+          <div className="h-8 w-px bg-border hidden sm:block" />
+          <div>
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">Efectivo contado (Arqueo)</span>
+            <p className="text-base font-semibold tabular-nums text-foreground">
+              {formatCurrency(realBalance)}
+              {countedCash === null && <span className="ml-1 text-xs text-muted-foreground">(Sin arquear)</span>}
+            </p>
+          </div>
+          <div className="h-8 w-px bg-border hidden sm:block" />
+          <div>
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">Diferencia de cuadre</span>
+            <p className={cn(
+              'text-base font-bold tabular-nums',
+              difference > 0 ? 'text-warning' : difference < 0 ? 'text-danger' : 'text-success'
+            )}>
+              {formatSignedCurrency(difference)}
+            </p>
+          </div>
+        </div>
+        <Badge variant={closingStatusVariant[diffStatus]} size="md" dot>
+          {closingStatusLabel[diffStatus]}
+        </Badge>
+      </div>
     </div>
-  )
+  );
 
   return (
     <div className="flex flex-col gap-6">

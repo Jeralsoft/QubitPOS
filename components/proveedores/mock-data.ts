@@ -30,6 +30,7 @@ export interface Supplier {
   personType: PersonType
   documentType: DocumentType
   document: string
+  dv?: string
   businessName: string
   tradeName: string
   displayName: string
@@ -44,13 +45,18 @@ export interface Supplier {
   paymentTerms: string
   creditDays: number
   creditLimit: number
+  bank?: string
+  accountType?: string
+  accountNumber?: string
+  taxRegime?: string
+  discountCommercial?: number
   status: SupplierStatus
   createdAt: string
   totalPurchases: number
-  purchaseCount: number
   monthPurchases: number
-  balance: number
   totalPaid: number
+  purchaseCount: number
+  balance: number
   lastPurchase: string
   color: string
 }

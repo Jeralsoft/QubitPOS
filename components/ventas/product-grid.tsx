@@ -62,9 +62,9 @@ export function ProductGrid({ onAdd, searchInputRef }: ProductGridProps) {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* Search and Category Filter */}
-      <div className="flex flex-col gap-3">
+      <div className="shrink-0 flex flex-col gap-2.5">
         <div className="relative">
           <Input
             ref={searchInputRef}
@@ -111,7 +111,7 @@ export function ProductGrid({ onAdd, searchInputRef }: ProductGridProps) {
           </div>
         </div>
       ) : (
-        <div className="grid flex-1 auto-rows-max grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-3 overflow-y-auto pb-2">
+        <div className="grid flex-1 min-h-0 auto-rows-max grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-3 overflow-y-auto pb-2">
           {filtered.map((product) => (
             <ProductCard key={product.id} product={product} onAdd={onAdd} />
           ))}

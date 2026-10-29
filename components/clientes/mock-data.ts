@@ -17,6 +17,7 @@ export interface Customer {
   personType: PersonType
   documentType: DocumentType
   document: string
+  dv?: string
   firstName: string
   lastName: string
   businessName: string
@@ -24,13 +25,19 @@ export interface Customer {
   phone: string
   mobile: string
   email: string
+  invoiceEmail?: string
   address: string
+  neighborhood?: string
+  postalCode?: string
   city: string
   department: string
   type: CustomerType
   creditLimit: number
   creditDays: number
   priceList: string
+  discountPct?: number
+  taxRegime?: string
+  fiscalResponsibilities?: string
   status: CustomerStatus
   createdAt: string
   totalPurchases: number

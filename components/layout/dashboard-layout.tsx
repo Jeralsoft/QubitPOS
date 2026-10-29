@@ -85,6 +85,7 @@ export function DashboardLayout({ children, onLogout }: DashboardLayoutProps) {
 
   const crumbs = resolveCrumbs(activeHref)
   const ActiveModule = resolveModule(activeHref)
+  const isPos = activeHref === '/ventas' || activeHref.startsWith('/ventas/')
 
   function handleNavigate(href: string) {
     setActiveHref(href)
@@ -114,12 +115,12 @@ export function DashboardLayout({ children, onLogout }: DashboardLayoutProps) {
         {/* Content column, offset by sidebar width on desktop */}
         <div
           className={cn(
-            'flex min-w-0 flex-1 flex-col transition-[margin] duration-200 ease-out',
+            'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-[margin] duration-200 ease-out',
             collapsed ? 'lg:ml-[76px]' : 'lg:ml-64',
           )}
         >
           <Header crumbs={crumbs} onToggleSidebar={handleToggleSidebar} cajaOpen onLogout={onLogout} />
-          <MainContent>{children ?? <ActiveModule />}</MainContent>
+          <MainContent fullHeight={isPos}>{children ?? <ActiveModule />}</MainContent>
         </div>
       </div>
     </POSSessionProvider>

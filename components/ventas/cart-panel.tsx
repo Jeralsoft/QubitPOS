@@ -1,9 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Minus, Plus, Trash2, ShoppingCart, Tag, X, ArrowRight, UserCheck } from 'lucide-react'
+import { Minus, Plus, Trash2, ShoppingCart, X } from 'lucide-react'
 import { Button } from '@/components/jeralpos/button'
-import { Input } from '@/components/jeralpos/input'
 import { cn } from '@/lib/utils'
 import {
   formatCurrency,
@@ -59,9 +58,9 @@ export function CartPanel(props: CartPanelProps) {
   const itemCount = items.reduce((n, i) => n + i.quantity, 0)
 
   return (
-    <div className="flex h-full flex-col bg-card rounded-2xl border border-border/75 shadow-2xs overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col bg-card rounded-2xl border border-border/75 shadow-2xs overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-border/60 p-4">
+      <div className="shrink-0 flex items-center justify-between gap-3 border-b border-border/60 p-3.5">
         <div className="flex items-center gap-2.5">
           <span className="flex size-8 items-center justify-center rounded-xl bg-muted/60 text-foreground">
             <ShoppingCart className="size-4" />
@@ -82,7 +81,7 @@ export function CartPanel(props: CartPanelProps) {
       </div>
 
       {/* Customer select */}
-      <div className="border-b border-border/60 p-3 bg-muted/20">
+      <div className="shrink-0 border-b border-border/60 p-3 bg-muted/20">
         <CustomerSelect
           customer={customer}
           customers={customers}
@@ -93,10 +92,10 @@ export function CartPanel(props: CartPanelProps) {
         />
       </div>
 
-      {/* Items list */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Items list - scrollable container with min-h-0 so it doesn't push down footer */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {empty ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+          <div className="flex h-full min-h-[140px] flex-col items-center justify-center gap-3 p-6 text-center">
             <div className="flex size-12 items-center justify-center rounded-2xl bg-muted/40 text-muted-foreground/60">
               <ShoppingCart className="size-5" />
             </div>
@@ -122,14 +121,14 @@ export function CartPanel(props: CartPanelProps) {
         )}
       </div>
 
-      {/* Payment method selector */}
-      <div className="border-t border-border/60 p-3.5 bg-muted/10">
+      {/* Payment method selector - fixed at bottom, does not get pushed down */}
+      <div className="shrink-0 border-t border-border/60 p-3 bg-muted/10">
         <PaymentSelect value={payment} onSelect={onSelectPayment} />
       </div>
 
-      {/* Summary calculations */}
-      <div className="border-t border-border/60 bg-muted/30 p-4 space-y-3">
-        <dl className="space-y-1.5 text-xs">
+      {/* Summary calculations & actions - fixed at bottom */}
+      <div className="shrink-0 border-t border-border/60 bg-muted/30 p-3.5 space-y-2.5">
+        <dl className="space-y-1 text-xs">
           <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
           <SummaryRow
             label="Descuento"
@@ -139,7 +138,7 @@ export function CartPanel(props: CartPanelProps) {
           <SummaryRow label="IVA (19%)" value={formatCurrency(totals.tax)} />
         </dl>
 
-        <div className="flex items-baseline justify-between border-t border-border/60 pt-2.5">
+        <div className="flex items-baseline justify-between border-t border-border/60 pt-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">TOTAL</span>
           <span className="text-2xl font-bold tabular-nums tracking-tight text-foreground">
             {formatCurrency(totals.total)}
@@ -147,14 +146,14 @@ export function CartPanel(props: CartPanelProps) {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <Button variant="outline" size="sm" onClick={onSave} disabled={empty} className="h-9 justify-between rounded-xl">
+        <div className="grid grid-cols-2 gap-2 pt-0.5">
+          <Button variant="outline" size="sm" onClick={onSave} disabled={empty} className="h-8.5 justify-between rounded-xl">
             <span>Guardar</span>
             <kbd className="rounded border border-border/80 bg-muted/60 px-1 py-0.5 text-[9px] font-mono text-muted-foreground">
               F8
             </kbd>
           </Button>
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={empty} className="h-9 justify-between rounded-xl">
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={empty} className="h-8.5 justify-between rounded-xl">
             <span>Cancelar</span>
             <kbd className="rounded border border-border/80 bg-muted/60 px-1 py-0.5 text-[9px] font-mono text-muted-foreground">
               Esc
@@ -167,7 +166,7 @@ export function CartPanel(props: CartPanelProps) {
           size="lg"
           onClick={onCharge}
           disabled={empty || !payment}
-          className="h-12 w-full justify-between px-4 text-xs font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 shadow-sm"
+          className="h-11 w-full justify-between px-4 text-xs font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 shadow-sm"
         >
           <span className="flex items-center gap-1.5">
             <span>Cobrar</span>
@@ -214,7 +213,7 @@ function CartRow({
   const maxQty = product.stock
 
   return (
-    <li className="p-3.5 space-y-2.5">
+    <li className="p-3 space-y-2">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-semibold text-foreground leading-snug">{product.name}</p>
@@ -226,30 +225,30 @@ function CartRow({
           type="button"
           onClick={() => onRemove(product.id)}
           aria-label={`Eliminar ${product.name}`}
-          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"
+          className="flex size-6.5 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"
         >
           <Trash2 className="size-3.5" />
         </button>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         {/* Quantity Stepper */}
-        <div className="inline-flex items-center rounded-xl border border-border/80 bg-muted/30">
+        <div className="inline-flex items-center rounded-lg border border-border/80 bg-muted/30">
           <button
             type="button"
             onClick={() => onChangeQuantity(product.id, quantity - 1)}
             aria-label="Disminuir cantidad"
-            className="flex size-7 items-center justify-center rounded-l-xl text-foreground transition-colors hover:bg-muted disabled:opacity-30"
+            className="flex size-6.5 items-center justify-center rounded-l-lg text-foreground transition-colors hover:bg-muted disabled:opacity-30"
             disabled={quantity <= 1}
           >
             <Minus className="size-3" />
           </button>
-          <span className="w-8 text-center text-xs font-semibold tabular-nums">{quantity}</span>
+          <span className="w-7 text-center text-xs font-semibold tabular-nums">{quantity}</span>
           <button
             type="button"
             onClick={() => onChangeQuantity(product.id, quantity + 1)}
             aria-label="Aumentar cantidad"
-            className="flex size-7 items-center justify-center rounded-r-xl text-foreground transition-colors hover:bg-muted disabled:opacity-30"
+            className="flex size-6.5 items-center justify-center rounded-r-lg text-foreground transition-colors hover:bg-muted disabled:opacity-30"
             disabled={quantity >= maxQty}
           >
             <Plus className="size-3" />

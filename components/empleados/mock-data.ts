@@ -59,19 +59,47 @@ export interface Employee {
   fullName: string
   documentType: DocumentType
   document: string
+  documentIssuePlace?: string
   birthDate: string
+  gender?: string
+  maritalStatus?: string
+  educationLevel?: string
   phone: string
   mobile: string
   email: string
   address: string
+  neighborhood?: string
   city: string
+  department?: string
+  emergencyContactName?: string
+  emergencyContactRelationship?: string
+  emergencyContactPhone?: string
   role: string
   branch: string
+  companyDepartment?: string
   hireDate: string
+  contractType?: string
+  contractEndDate?: string
+  workSchedule?: string
+  salary?: string | number
+  payFrequency?: string
+  transportAllowance?: string | number
+  eps?: string
+  pension?: string
+  cesantias?: string
+  arl?: string
+  arlRisk?: string
+  cajaCompensacion?: string
+  paymentMethod?: string
+  bank?: string
+  accountType?: string
+  accountNumber?: string
   status: EmployeeStatus
   notes: string
   hasUser: boolean
   username: string
+  posPin?: string
+  assignedRegister?: string
   salesCount: number
   salesTotal: number
   cashOpenings: number
