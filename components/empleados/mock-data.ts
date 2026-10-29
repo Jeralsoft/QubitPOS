@@ -97,9 +97,105 @@ export const branches = [
   'Bodega Central',
 ]
 
+export const companyDepartments = [
+  'Ventas y Atención al Cliente',
+  'Caja y Facturación',
+  'Inventarios y Almacén',
+  'Administración y Finanzas',
+  'Cocina y Preparación',
+  'Logística y Domicilios',
+]
+
+export const colombianDepartments = [
+  'Bogotá D.C.',
+  'Antioquia',
+  'Cundinamarca',
+  'Valle del Cauca',
+  'Atlántico',
+  'Santander',
+  'Bolívar',
+  'Risaralda',
+  'Huila',
+  'Tolima',
+  'Nariño',
+  'Boyacá',
+  'Caldas',
+  'Meta',
+]
+
+export const epsList = [
+  'Sura EPS',
+  'Sanitas EPS',
+  'Nueva EPS',
+  'Compensar EPS',
+  'Famisanar EPS',
+  'Salud Total EPS',
+  'Savia Salud',
+  'Coosalud',
+  'Mutual Ser',
+]
+
+export const pensionFunds = [
+  'Porvenir',
+  'Protección',
+  'Colpensiones',
+  'Colfondos',
+  'Skandia',
+]
+
+export const cesantiasFunds = [
+  'Porvenir',
+  'Protección',
+  'Fondo Nacional del Ahorro (FNA)',
+  'Colfondos',
+  'Skandia',
+]
+
+export const arlList = [
+  'Sura ARL',
+  'Positiva Compañía de Seguros',
+  'Seguros Bolívar',
+  'ARL Colmena',
+  'AXA Colpatria',
+  'La Equidad',
+]
+
+export const arlRisks = [
+  'Clase I - Riesgo Mínimo (0.522%) - Administrativo',
+  'Clase II - Riesgo Bajo (1.044%) - Comercio / Ventas',
+  'Clase III - Riesgo Medio (2.436%) - Almacén / Bodega',
+  'Clase IV - Riesgo Alto (4.350%) - Transporte',
+  'Clase V - Riesgo Máximo (6.960%) - Operativo',
+]
+
+export const cajasCompensacion = [
+  'Compensar',
+  'Colsubsidio',
+  'Cafam',
+  'Comfama',
+  'Comfenalco Antioquia',
+  'Comfenalco Valle',
+  'Combarranquilla',
+  'Cajasan',
+  'Comfacundi',
+]
+
+export const banksList = [
+  'Bancolombia',
+  'Davivienda',
+  'Banco de Bogotá',
+  'BBVA Colombia',
+  'Nequi',
+  'Daviplata',
+  'Scotiabank Colpatria',
+  'Banco de Occidente',
+  'Banco Agrario',
+  'Nu Colombia',
+]
+
 export const cities = [
-  'Bogotá',
-  'Medellín',
+  'BogotÃ¡',
+  'MedellÃ­n',
   'Cali',
   'Barranquilla',
   'Cartagena',
@@ -128,10 +224,10 @@ export const activityLabel: Record<ActivityType, string> = {
   venta: 'Venta',
   apertura_caja: 'Apertura de caja',
   cierre_caja: 'Cierre de caja',
-  ingreso: 'Inicio de sesión',
+  ingreso: 'Inicio de sesiÃ³n',
   ajuste: 'Ajuste de inventario',
-  devolucion: 'Devolución',
-  sesion: 'Sesión',
+  devolucion: 'DevoluciÃ³n',
+  sesion: 'SesiÃ³n',
 }
 
 const palette = [
@@ -161,8 +257,8 @@ export const employees: Employee[] = [
   {
     id: 'e1',
     firstName: 'Laura',
-    lastName: 'Martínez',
-    fullName: 'Laura Martínez',
+    lastName: 'MartÃ­nez',
+    fullName: 'Laura MartÃ­nez',
     documentType: 'CC',
     document: '1032456789',
     birthDate: '1992-04-18',
@@ -170,12 +266,12 @@ export const employees: Employee[] = [
     mobile: '311 456 7788',
     email: 'laura.martinez@jeralpos.com',
     address: 'Calle 80 #14-22',
-    city: 'Bogotá',
+    city: 'BogotÃ¡',
     role: 'Administrador',
     branch: 'Sede Principal',
     hireDate: '2021-02-15',
     status: 'activo',
-    notes: 'Acceso total al sistema. Responsable de configuración.',
+    notes: 'Acceso total al sistema. Responsable de configuraciÃ³n.',
     hasUser: true,
     username: 'lmartinez',
     salesCount: 1240,
@@ -187,8 +283,8 @@ export const employees: Employee[] = [
   {
     id: 'e2',
     firstName: 'Carlos',
-    lastName: 'Gómez',
-    fullName: 'Carlos Gómez',
+    lastName: 'GÃ³mez',
+    fullName: 'Carlos GÃ³mez',
     documentType: 'CC',
     document: '80115544',
     birthDate: '1988-11-03',
@@ -196,12 +292,12 @@ export const employees: Employee[] = [
     mobile: '310 887 2200',
     email: 'carlos.gomez@jeralpos.com',
     address: 'Cra 43 #10-30',
-    city: 'Medellín',
+    city: 'MedellÃ­n',
     role: 'Cajero',
     branch: 'Sucursal Norte',
     hireDate: '2022-06-01',
     status: 'activo',
-    notes: 'Turno mañana. Caja 2.',
+    notes: 'Turno maÃ±ana. Caja 2.',
     hasUser: true,
     username: 'cgomez',
     salesCount: 2180,
@@ -238,9 +334,9 @@ export const employees: Employee[] = [
   },
   {
     id: 'e4',
-    firstName: 'Andrés',
-    lastName: 'Peña',
-    fullName: 'Andrés Peña',
+    firstName: 'AndrÃ©s',
+    lastName: 'PeÃ±a',
+    fullName: 'AndrÃ©s PeÃ±a',
     documentType: 'CC',
     document: '79554120',
     birthDate: '1985-01-22',
@@ -264,9 +360,9 @@ export const employees: Employee[] = [
   },
   {
     id: 'e5',
-    firstName: 'Mónica',
+    firstName: 'MÃ³nica',
     lastName: 'Salazar',
-    fullName: 'Mónica Salazar',
+    fullName: 'MÃ³nica Salazar',
     documentType: 'CE',
     document: '456778',
     birthDate: '1990-09-09',
@@ -274,7 +370,7 @@ export const employees: Employee[] = [
     mobile: '300 112 3344',
     email: 'monica.salazar@jeralpos.com',
     address: 'Calle 100 #19-54',
-    city: 'Bogotá',
+    city: 'BogotÃ¡',
     role: 'Contador',
     branch: 'Sede Principal',
     hireDate: '2021-11-02',
@@ -290,9 +386,9 @@ export const employees: Employee[] = [
   },
   {
     id: 'e6',
-    firstName: 'Julián',
+    firstName: 'JuliÃ¡n',
     lastName: 'Torres',
-    fullName: 'Julián Torres',
+    fullName: 'JuliÃ¡n Torres',
     documentType: 'CC',
     document: '1015667788',
     birthDate: '1998-12-15',
@@ -305,7 +401,7 @@ export const employees: Employee[] = [
     branch: 'Bodega Central',
     hireDate: '2023-08-21',
     status: 'suspendido',
-    notes: 'Suspendido por revisión de inventario pendiente.',
+    notes: 'Suspendido por revisiÃ³n de inventario pendiente.',
     hasUser: false,
     username: '',
     salesCount: 0,
@@ -406,10 +502,10 @@ const daysBack = (n: number) => {
 const customers = [
   'Consumidor final',
   'Supermercado La 14',
-  'Tienda Doña Rosa',
-  'Cafetería Central',
+  'Tienda DoÃ±a Rosa',
+  'CafeterÃ­a Central',
   'Distribuidora El Progreso',
-  'Panadería Trigo de Oro',
+  'PanaderÃ­a Trigo de Oro',
 ]
 
 const registers = ['Caja 1', 'Caja 2', 'Caja 3']
@@ -446,27 +542,27 @@ export function getEmployeeActivity(employee: Employee): ActivityEntry[] {
       const doc = `VT-${10000 + i + idNum(employee.id) * 13}`
       amount = Math.round(avgSale * (0.5 + rng()))
       title = 'Venta registrada'
-      detail = `${doc} · ${customers[Math.floor(rng() * customers.length)]}`
+      detail = `${doc} Â· ${customers[Math.floor(rng() * customers.length)]}`
     } else if (type === 'apertura_caja') {
       amount = Math.round((100000 + rng() * 200000) / 1000) * 1000
       title = 'Apertura de caja'
-      detail = `${registers[Math.floor(rng() * registers.length)]} · base inicial`
+      detail = `${registers[Math.floor(rng() * registers.length)]} Â· base inicial`
     } else if (type === 'cierre_caja') {
       amount = Math.round((500000 + rng() * 3000000) / 1000) * 1000
       title = 'Cierre de caja'
-      detail = `${registers[Math.floor(rng() * registers.length)]} · arqueo`
+      detail = `${registers[Math.floor(rng() * registers.length)]} Â· arqueo`
     } else if (type === 'devolucion') {
       amount = -Math.round(avgSale * (0.2 + rng() * 0.4))
-      title = 'Devolución procesada'
-      detail = `DV-${5000 + i} · reembolso`
+      title = 'DevoluciÃ³n procesada'
+      detail = `DV-${5000 + i} Â· reembolso`
     } else if (type === 'ingreso') {
-      title = 'Inicio de sesión'
-      detail = `${employee.branch} · sesión web`
+      title = 'Inicio de sesiÃ³n'
+      detail = `${employee.branch} Â· sesiÃ³n web`
     } else if (type === 'ajuste') {
       title = 'Ajuste de inventario'
-      detail = `AJ-${3000 + i} · conteo`
+      detail = `AJ-${3000 + i} Â· conteo`
     } else {
-      title = 'Actividad de sesión'
+      title = 'Actividad de sesiÃ³n'
       detail = `${employee.branch}`
     }
     entries.push({
@@ -540,14 +636,14 @@ export function getEmployeeCashSessions(employee: Employee): CashSession[] {
 export function getEmployeeAudit(employee: Employee): AuditEntry[] {
   const rng = seeded(idNum(employee.id) * 89 + 11)
   const actions = [
-    { action: 'Inicio de sesión', module: 'Autenticación' },
-    { action: 'Cierre de sesión', module: 'Autenticación' },
-    { action: 'Creó una venta', module: 'Ventas' },
-    { action: 'Anuló una venta', module: 'Ventas' },
-    { action: 'Editó un producto', module: 'Productos' },
-    { action: 'Registró movimiento', module: 'Inventarios' },
-    { action: 'Cerró caja', module: 'Caja' },
-    { action: 'Cambió configuración', module: 'Ajustes' },
+    { action: 'Inicio de sesiÃ³n', module: 'AutenticaciÃ³n' },
+    { action: 'Cierre de sesiÃ³n', module: 'AutenticaciÃ³n' },
+    { action: 'CreÃ³ una venta', module: 'Ventas' },
+    { action: 'AnulÃ³ una venta', module: 'Ventas' },
+    { action: 'EditÃ³ un producto', module: 'Productos' },
+    { action: 'RegistrÃ³ movimiento', module: 'Inventarios' },
+    { action: 'CerrÃ³ caja', module: 'Caja' },
+    { action: 'CambiÃ³ configuraciÃ³n', module: 'Ajustes' },
   ]
   return Array.from({ length: 7 }).map((_, i) => {
     const a = actions[Math.floor(rng() * actions.length)]
@@ -565,3 +661,4 @@ export function getEmployeeAudit(employee: Employee): AuditEntry[] {
     }
   })
 }
+
