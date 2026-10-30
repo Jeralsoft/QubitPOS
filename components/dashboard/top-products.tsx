@@ -1,8 +1,16 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/jeralpos/card'
 import { topProducts } from './mock-data'
 
-export function TopProducts() {
-  const maxQty = Math.max(...topProducts.map((p) => p.quantity))
+export interface TopProductDisplay {
+  id: string
+  name: string
+  quantity: number
+  value: string
+}
+
+export function TopProducts({ items }: { items?: TopProductDisplay[] }) {
+  const displayItems = items && items.length > 0 ? items : topProducts
+  const maxQty = Math.max(1, ...displayItems.map((p) => p.quantity))
 
   return (
     <Card className="h-full">
@@ -11,7 +19,7 @@ export function TopProducts() {
         <CardDescription>Ranking por unidades vendidas este mes</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {topProducts.map((p, i) => (
+        {displayItems.map((p, i) => (
           <div key={p.id} className="flex items-center gap-3">
             <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-xs font-bold text-muted-foreground">
               {i + 1}

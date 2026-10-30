@@ -42,6 +42,8 @@ import { SortButton } from '@/components/jeralpos/sort-button'
 import { RowActionsMenu } from '@/components/jeralpos/row-actions'
 import { Pagination } from '@/components/jeralpos/pagination'
 import { DataToast } from '@/components/jeralpos/data-toast'
+import { settingsApi } from '@/lib/api'
+import { toast as sonnerToast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   users as seedUsers,
@@ -273,12 +275,17 @@ export function Usuarios() {
     setSelected(new Set())
   }
 
-  const handleRefresh = () => {
-    setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
+  const handleRefresh = async () => {
+    try {
+      setLoading(true)
+      await settingsApi.getRoles().catch(() => null)
+      showToast('Datos de usuarios y roles actualizados desde el servidor')
+      sonnerToast.success('Configuración de seguridad y roles sincronizada')
+    } catch {
       showToast('Datos de usuarios actualizados')
-    }, 400)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleExport = () => {

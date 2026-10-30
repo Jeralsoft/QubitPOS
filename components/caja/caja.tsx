@@ -59,6 +59,7 @@ import { OpenCashModal, type OpenPayload } from './open-modal'
 import { CashMovementModal, type MovementPayload } from './cash-movement-modal'
 import { ArqueoModal, type ArqueoResult } from './arqueo-modal'
 import { CloseCashModal } from './close-modal'
+import { reportsApi } from '@/lib/api'
 
 type ToastKind = 'success' | 'error'
 
@@ -160,8 +161,37 @@ export function Caja() {
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
 
   React.useEffect(() => {
-    const t = window.setTimeout(() => setLoading(false), 700)
-    return () => window.clearTimeout(t)
+    reportsApi
+      .getCashAudit()
+      .then((res) => {
+        if (res?.data?.shifts && res.data.shifts.length > 0) {
+          const mappedHistory = (res.data.shifts as Array<Record<string, any>>).map((s) => {
+            const diff = Number(s.difference) || 0
+            const status: ClosingStatus = closingStatusFromDiff(diff)
+            const openedAtStr = typeof s.opened_at === 'string' ? s.opened_at : ''
+            const userObj = s.user && typeof s.user === 'object' ? s.user : null
+            return {
+              id: `shift-${s.id ?? Date.now()}`,
+              date: openedAtStr.slice(0, 10) || new Date().toISOString().slice(0, 10),
+              register: String(s.register_name || 'Caja #001'),
+              branch: String(s.branch_name || 'Sede Principal'),
+              user: String(userObj?.name || 'Laura Martínez'),
+              openingBalance: Number(s.opening_balance) || 0,
+              sales: 0,
+              income: 0,
+              expense: 0,
+              refunds: 0,
+              expected: Number(s.closing_balance_expected ?? s.opening_balance) || 0,
+              counted: Number(s.closing_balance_counted ?? s.opening_balance) || 0,
+              difference: diff,
+              status,
+            }
+          })
+          setHistory(mappedHistory)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const showToast = React.useCallback((msg: string, kind: ToastKind = 'success') => {

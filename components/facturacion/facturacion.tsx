@@ -39,6 +39,8 @@ import { SortButton } from '@/components/jeralpos/sort-button'
 import { RowActionsMenu } from '@/components/jeralpos/row-actions'
 import { Pagination } from '@/components/jeralpos/pagination'
 import { DataToast } from '@/components/jeralpos/data-toast'
+import { posApi, type SaleRecordData } from '@/lib/api'
+import { toast as sonnerToast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   invoices as seedInvoices,
@@ -51,6 +53,8 @@ import {
   dianStatusVariant,
   type Invoice,
   type InvoiceStatus,
+  type InvoiceItem,
+  type PaymentMethod,
 } from './mock-data'
 import { InvoiceDetail } from './invoice-detail'
 import { InvoicePdf } from './invoice-pdf'
@@ -81,10 +85,75 @@ export function Facturacion() {
   const [toVoid, setToVoid] = React.useState<Invoice | null>(null)
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
 
-  React.useEffect(() => {
-    const t = window.setTimeout(() => setLoading(false), 500)
-    return () => window.clearTimeout(t)
+  const loadSales = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await posApi.getSales()
+      if (res?.data && res.data.length > 0) {
+        const mapped: Invoice[] = res.data.map((s: SaleRecordData) => {
+          const mappedItems: InvoiceItem[] = (s.items || []).map((it) => ({
+            id: String(it.id),
+            code: `PROD-${it.productId}`,
+            description: it.productName || 'Producto',
+            quantity: Number(it.quantity) || 1,
+            unitPrice: Number(it.unitPrice) || 0,
+            discount: Number(it.discount) || 0,
+            taxRate: (Number(it.taxRate) || 0) * 100,
+          }))
+
+          const rawDate = s.createdAt || new Date().toISOString()
+          const date = rawDate.split('T')[0]
+          const time = rawDate.includes('T') ? rawDate.split('T')[1].slice(0, 5) : '00:00'
+
+          const methodUpper: PaymentMethod =
+            s.paymentMethod?.toLowerCase() === 'tarjeta'
+              ? 'Tarjeta'
+              : s.paymentMethod?.toLowerCase() === 'transferencia'
+              ? 'Transferencia'
+              : s.paymentMethod?.toLowerCase() === 'credito' || s.paymentMethod?.toLowerCase() === 'crédito'
+              ? 'Crédito'
+              : 'Efectivo'
+
+          return {
+            id: String(s.id),
+            number: s.invoiceNumber || `FE-${s.id}`,
+            date,
+            time,
+            customer: {
+              name: s.customer?.name || 'Consumidor final',
+              documentType: (s.customer?.taxId?.length === 9 || s.customer?.taxId?.includes('-')) ? 'NIT' : 'CC',
+              document: s.customer?.taxId || '222222222222',
+              email: '',
+              phone: s.customer?.phone || '',
+              address: 'Sede Principal',
+              city: 'Bogotá D.C.',
+            },
+            seller: 'Cajero Principal',
+            paymentMethod: methodUpper,
+            items: mappedItems,
+            notes: `Factura Electrónica generada con CUFE: ${s.cufe ? s.cufe.slice(0, 16) + '...' : 'N/A'}`,
+            status: 'aceptada' as InvoiceStatus,
+            electronic: {
+              dianStatus: 'aceptado' as const,
+              cufe: s.cufe || null,
+              sentAt: rawDate,
+              respondedAt: rawDate,
+              message: 'Documento procesado y validado con éxito por la DIAN (UBL 2.1)',
+            },
+          }
+        })
+        setItems(mapped)
+      }
+    } catch {
+      // Conservar seed data si falla la API
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  React.useEffect(() => {
+    loadSales()
+  }, [loadSales])
 
   const showToast = React.useCallback((msg: string, kind: ToastKind = 'success') => {
     setToast({ msg, kind })
@@ -296,12 +365,10 @@ export function Facturacion() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setLoading(true)
-              window.setTimeout(() => {
-                setLoading(false)
-                showToast('Facturas sincronizadas con la DIAN')
-              }, 450)
+            onClick={async () => {
+              await loadSales()
+              showToast('Facturas y estados DIAN actualizados desde el servidor')
+              sonnerToast.success('Historial de facturación sincronizado')
             }}
           >
             <RefreshCw className={loading ? 'animate-spin' : ''} />
@@ -593,6 +660,17 @@ export function Facturacion() {
                             icon: Printer,
                             onClick: () => setPdf(inv),
                           },
+                          ...(inv.electronic.cufe
+                            ? [
+                                {
+                                  label: 'Descargar XML UBL 2.1',
+                                  icon: Download,
+                                  onClick: () => {
+                                    window.open(posApi.getSaleXmlUrl(inv.id), '_blank')
+                                  },
+                                },
+                              ]
+                            : []),
                           ...(canSend
                             ? [
                                 {

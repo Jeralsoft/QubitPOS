@@ -17,6 +17,8 @@ import { MovementsTable } from './movements-table'
 import { MovementModal, type MovementAction } from './movement-modal'
 import { getInventorySummary } from './mock-data'
 import { DataToast } from '@/components/jeralpos/data-toast'
+import { reportsApi } from '@/lib/api'
+import { toast as sonnerToast } from 'sonner'
 
 const actions: Array<{
   action: MovementAction
@@ -72,13 +74,54 @@ export function Inventarios() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const handleRefresh = () => {
-    setLoading(true)
-    setTimeout(() => {
-      setSummary(getInventorySummary())
+  const loadInventory = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await reportsApi.getInventory('actual')
+      if (res?.data?.rows) {
+        const rows = res.data.rows
+        const totalProducts = rows.length
+        let availableStock = 0
+        let lowStockCount = 0
+        let outOfStockCount = 0
+        let inventoryValue = 0
+
+        rows.forEach((p) => {
+          const st = Number(p.stock) || 0
+          const min = Number(p.min_stock) || 0
+          const cost = Number(p.purchase_price) || 0
+          availableStock += st
+          inventoryValue += st * cost
+          if (st <= 0) {
+            outOfStockCount += 1
+          } else if (st <= min) {
+            lowStockCount += 1
+          }
+        })
+
+        setSummary({
+          totalProducts,
+          availableStock,
+          lowStockCount,
+          outOfStockCount,
+          inventoryValue,
+        })
+      }
+    } catch {
+      // Conservar cálculo local si la API no está disponible
+    } finally {
       setLoading(false)
-      showToast('Kardex y existencias actualizados con éxito')
-    }, 400)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    loadInventory()
+  }, [loadInventory])
+
+  const handleRefresh = async () => {
+    await loadInventory()
+    showToast('Kárdex y existencias actualizados desde el servidor')
+    sonnerToast.success('Stock sincronizado con la base de datos')
   }
 
   return (

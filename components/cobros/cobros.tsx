@@ -36,7 +36,7 @@ import { SortButton } from '@/components/jeralpos/sort-button'
 import { RowActionsMenu } from '@/components/jeralpos/row-actions'
 import { Pagination } from '@/components/jeralpos/pagination'
 import { DataToast } from '@/components/jeralpos/data-toast'
-import { carteraApi } from '@/lib/api'
+import { carteraApi, type AccountReceivableRecord } from '@/lib/api'
 import { toast as sonnerToast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
@@ -53,6 +53,8 @@ import {
   customerCartera,
   type Receivable,
   type ReceivableStatus,
+  type Payment,
+  type PaymentMethod,
 } from './mock-data'
 import { AgingChart } from './aging-chart'
 import { PaymentModal, type PaymentDraft } from './payment-modal'
@@ -84,10 +86,66 @@ export function Cobros() {
   const [profileCustomerId, setProfileCustomerId] = React.useState<string | null>(null)
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
 
-  React.useEffect(() => {
-    const t = window.setTimeout(() => setLoading(false), 500)
-    return () => window.clearTimeout(t)
+  const loadData = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await carteraApi.getRecords()
+      if (res && res.data && res.data.length > 0) {
+        const mapped: Receivable[] = res.data.map((r: AccountReceivableRecord) => {
+          const payments: Payment[] = (r.payments || []).map((p) => {
+            const m = (p.payment_method || '').toLowerCase()
+            const methodLabel: PaymentMethod =
+              m === 'tarjeta'
+                ? 'Tarjeta'
+                : m === 'transferencia'
+                ? 'Transferencia'
+                : m === 'cheque'
+                ? 'Cheque'
+                : m === 'otro'
+                ? 'Otro'
+                : 'Efectivo'
+
+            return {
+              id: `pay-${p.id}`,
+              date: (p.payment_date || '').split('T')[0] || new Date().toISOString().split('T')[0],
+              method: methodLabel,
+              amount: Number(p.amount) || 0,
+              reference: p.reference_code || '',
+              notes: '',
+              receivedBy: 'Cajero Principal',
+            }
+          })
+
+          const total = Number(r.initial_amount) || 0
+          return {
+            id: String(r.id),
+            invoice: r.sale_id ? `FE-${r.sale_id}` : `CR-${r.id.toString().padStart(4, '0')}`,
+            customerId: r.customer_tax_id || `cust-${r.id}`,
+            customerName: r.customer_name || 'Cliente Mostrador',
+            documentType: (r.customer_tax_id?.length === 9 || r.customer_tax_id?.includes('-')) ? 'NIT' : 'CC',
+            document: r.customer_tax_id || '',
+            email: '',
+            phone: r.customer_phone || '',
+            city: 'Bogotá D.C.',
+            issueDate: ((r as { created_at?: string }).created_at || new Date().toISOString()).split('T')[0],
+            dueDate: (r.due_date || new Date().toISOString()).split('T')[0],
+            total,
+            payments,
+            voided: (r.status as string) === 'CANCELLED',
+          }
+        })
+        setItems(mapped)
+      }
+    } catch {
+      // Conservar seed data si la API falla
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  React.useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const showToast = React.useCallback((msg: string, kind: ToastKind = 'success') => {
     setToast({ msg, kind })
@@ -221,9 +279,43 @@ export function Cobros() {
     }
   }
 
-  const handleRegisterPayment = (draft: PaymentDraft) => {
+  const handleRegisterPayment = async (draft: PaymentDraft) => {
     if (!payTarget) return
     const invoice = payTarget.invoice
+    const numericId = Number(payTarget.id)
+
+    // Si el ID es numérico (registro real de BD), enviar a API de Laravel
+    if (!Number.isNaN(numericId) && numericId > 0) {
+      try {
+        const methodLower = (
+          draft.method.toLowerCase() === 'efectivo' ||
+          draft.method.toLowerCase() === 'tarjeta' ||
+          draft.method.toLowerCase() === 'transferencia'
+            ? draft.method.toLowerCase()
+            : 'otro'
+        ) as 'efectivo' | 'tarjeta' | 'transferencia' | 'otro'
+
+        await carteraApi.recordPayment({
+          account_receivable_id: numericId,
+          amount: draft.amount,
+          payment_method: methodLower,
+          reference_code: draft.reference,
+          notes: draft.notes,
+        })
+        sonnerToast.success(`Abono de ${formatCurrency(draft.amount)} registrado a ${invoice}`)
+        showToast(`Abono de ${formatCurrency(draft.amount)} guardado en el servidor`)
+        await loadData()
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al registrar el cobro en el servidor'
+        sonnerToast.error(msg)
+        showToast(msg, 'error')
+      } finally {
+        setPayTarget(null)
+      }
+      return
+    }
+
+    // Modo local optimista para registros de respaldo
     setItems((prev) =>
       prev.map((r) => {
         if (r.id !== payTarget.id) return r
@@ -284,12 +376,9 @@ export function Cobros() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setLoading(true)
-              window.setTimeout(() => {
-                setLoading(false)
-                showToast('Datos de cartera actualizados')
-              }, 400)
+            onClick={async () => {
+              await loadData()
+              showToast('Datos de cartera actualizados desde el servidor')
             }}
           >
             <RefreshCw className={loading ? 'animate-spin' : ''} />

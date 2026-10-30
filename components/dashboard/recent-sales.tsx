@@ -8,9 +8,11 @@ import {
   TableHead,
   TableCell,
 } from '@/components/jeralpos/table'
-import { recentSales, statusConfig } from './mock-data'
+import { recentSales, statusConfig, type RecentSale } from './mock-data'
 
-export function RecentSales() {
+export function RecentSales({ items }: { items?: RecentSale[] }) {
+  const displaySales = items && items.length > 0 ? items : recentSales
+
   return (
     <Card>
       <CardHeader>
@@ -30,7 +32,7 @@ export function RecentSales() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {recentSales.map((sale) => {
+            {displaySales.map((sale) => {
               const status = statusConfig[sale.status]
               return (
                 <TableRow key={sale.id}>

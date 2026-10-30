@@ -348,15 +348,13 @@ export function Proveedores() {
           <Button
             variant="outline"
             size="md"
-            onClick={() => {
-              setLoading(true)
-              window.setTimeout(() => {
-                setLoading(false)
-                showToast('Datos actualizados')
-              }, 650)
+            onClick={async () => {
+              await loadSuppliers()
+              showToast('Proveedores actualizados desde el servidor')
+              sonnerToast.success('Catálogo de proveedores sincronizado')
             }}
           >
-            <RefreshCw />
+            <RefreshCw className={loading ? 'animate-spin' : ''} />
             Actualizar
           </Button>
           <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>

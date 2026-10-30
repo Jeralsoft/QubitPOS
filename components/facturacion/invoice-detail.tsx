@@ -321,6 +321,18 @@ export function InvoiceDetail({
           <Download />
           Descargar PDF
         </Button>
+        {invoice.electronic.cufe && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              window.open(`http://localhost:8000/api/pos/sales/${invoice.id}/xml`, '_blank')
+            }}
+          >
+            <FileCheck2 />
+            Descargar XML DIAN
+          </Button>
+        )}
         <Button type="button" variant="primary" onClick={onSend} disabled={!canSend}>
           <Send />
           Enviar

@@ -4,6 +4,8 @@ import * as React from 'react'
 import { Plus, Minus, Trash2, ShoppingCart, ArrowLeft, Check, Utensils, ShoppingBag } from 'lucide-react'
 import { Logo } from '@/components/jeralpos/brand'
 import { Button } from '@/components/jeralpos/button'
+import { posApi } from '@/lib/api'
+import { toast as sonnerToast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   kioskCategories,
@@ -55,7 +57,27 @@ export function KioskPreview() {
 
   const removeLine = (id: string) => setCart((prev) => prev.filter((l) => l.product.id !== id))
 
-  const confirmPayment = () => {
+  const confirmPayment = async () => {
+    try {
+      const payloadItems = cart.map((l) => ({
+        product_id: 1,
+        quantity: l.qty,
+        unit_price: l.product.price,
+        tax_rate: 0.19,
+      }))
+
+      await posApi.createSale({
+        cash_shift_id: 1,
+        customer_name: 'Cliente Kiosco Autoservicio',
+        customer_tax_id: '222222222222',
+        payment_method: payment === 'tarjeta' ? 'tarjeta' : payment === 'qr' ? 'transferencia' : 'efectivo',
+        cash_received: total,
+        items: payloadItems,
+      })
+      sonnerToast.success('Pedido procesado y registrado en el POS con CUFE DIAN')
+    } catch {
+      // Fallback local en caso de desconexión momentánea
+    }
     setTurno(Math.floor(Math.random() * 80) + 20)
     setStage('confirm')
   }

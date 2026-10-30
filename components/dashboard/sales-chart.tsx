@@ -4,14 +4,15 @@ import { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/jeralpos/card'
 import { Badge } from '@/components/jeralpos/badge'
 import { formatCOP } from '@/lib/currency'
-import { salesLast7Days } from './mock-data'
+import { salesLast7Days, type DailySales } from './mock-data'
 
 const currency = (n: number) => formatCOP(n)
 
-export function SalesChart() {
+export function SalesChart({ items }: { items?: DailySales[] }) {
   const [active, setActive] = useState<number | null>(null)
-  const max = Math.max(...salesLast7Days.map((d) => d.total))
-  const total = salesLast7Days.reduce((sum, d) => sum + d.total, 0)
+  const displayItems = items && items.length > 0 ? items : salesLast7Days
+  const max = Math.max(1, ...displayItems.map((d) => d.total))
+  const total = displayItems.reduce((sum, d) => sum + d.total, 0)
   const gridLines = [0, 25, 50, 75, 100]
 
   return (
@@ -41,7 +42,7 @@ export function SalesChart() {
 
           {/* Bars */}
           <div className="relative flex h-56 items-end gap-2 pl-12 sm:gap-3">
-            {salesLast7Days.map((d, i) => {
+            {displayItems.map((d, i) => {
               const heightPct = (d.total / max) * 100
               const isActive = active === i
               return (

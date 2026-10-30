@@ -37,6 +37,7 @@ import {
   TableHead,
   TableCell,
 } from '@/components/jeralpos/table'
+import { posApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
   sectionGroups,
@@ -166,6 +167,44 @@ function ElapsedBadge({ order }: { order: PrepOrder }) {
 
 function useOrders(onToast: ToastFn) {
   const [items, setItems] = React.useState<PrepOrder[]>(seedOrders)
+
+  React.useEffect(() => {
+    posApi
+      .getSales()
+      .then((res) => {
+        if (res?.data && res.data.length > 0) {
+          const liveOrders: PrepOrder[] = res.data.map((s) => ({
+            id: `sale-kds-${s.id}`,
+            code: s.invoiceNumber || `ORD-${s.id}`,
+            comanda: `COM-${s.id}`,
+            table: 'Mostrador / Kiosco',
+            customer: s.customer?.name || 'Cliente POS',
+            waiter: 'Cajero / Autoservicio',
+            people: 1,
+            station: 'Cocina Caliente',
+            source: 'Kiosco' as const,
+            priority: 'normal' as const,
+            items: (s.items || []).map((it) => ({
+              qty: Number(it.quantity) || 1,
+              name: it.productName || 'Producto',
+            })),
+            note: 'Venta registrada en POS / Kiosco',
+            time: (s.createdAt || '').slice(11, 16) || '12:00',
+            createdAt: (s.createdAt || '').slice(0, 16).replace('T', ' '),
+            estimatedMin: 12,
+            elapsedMin: 3,
+            status: 'PENDIENTE' as const,
+          }))
+
+          setItems((prev) => {
+            const existingIds = new Set(prev.map((o) => o.id))
+            const fresh = liveOrders.filter((o) => !existingIds.has(o.id))
+            return [...fresh, ...prev]
+          })
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const setStatus = React.useCallback(
     (id: string, status: OrderStatus, message?: string) => {
