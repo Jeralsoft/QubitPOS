@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/jeralpos/button'
 import { Input, Label } from '@/components/jeralpos/input'
 import { Modal } from '@/components/jeralpos/modal'
@@ -17,10 +17,11 @@ import {
 interface PaymentModalProps {
   open: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: (cashReceived?: number) => void
   totals: CartTotals
   customer: Customer
   payment: PaymentMethodId | null
+  isSubmitting?: boolean
 }
 
 const QUICK_CASH = [10000, 20000, 50000, 100000]
@@ -32,6 +33,7 @@ export function PaymentModal({
   totals,
   customer,
   payment,
+  isSubmitting = false,
 }: PaymentModalProps) {
   const [received, setReceived] = React.useState('')
   const method = paymentMethods.find((m) => m.id === payment)
@@ -49,22 +51,36 @@ export function PaymentModal({
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={isSubmitting ? () => {} : onClose}
       title="Confirmar Cobro de Venta"
       description={`Cliente asignado: ${customer.name}`}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} className="rounded-xl">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="rounded-xl"
+          >
             Cancelar
           </Button>
           <Button
             variant="navy"
-            onClick={onConfirm}
-            disabled={!canConfirm}
+            onClick={() => onConfirm(isCash ? receivedNum : undefined)}
+            disabled={!canConfirm || isSubmitting}
             className="rounded-xl px-5 bg-foreground text-background hover:bg-foreground/90 font-semibold"
           >
-            <CheckCircle2 className="size-4" />
-            Finalizar Venta
+            {isSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin mr-1.5" />
+                Registrando...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="size-4 mr-1.5" />
+                Finalizar Venta
+              </>
+            )}
           </Button>
         </>
       }
@@ -99,6 +115,7 @@ export function PaymentModal({
                 placeholder="0"
                 className="h-11 text-base font-semibold tabular-nums rounded-xl"
                 autoFocus
+                disabled={isSubmitting}
               />
               {insufficient && (
                 <p className="text-xs text-rose-500 font-medium">
@@ -113,16 +130,18 @@ export function PaymentModal({
                 <button
                   key={amount}
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setReceived(String(amount))}
-                  className="h-8 flex-1 rounded-xl border border-border/70 bg-card px-2.5 text-xs font-medium tabular-nums transition-colors hover:bg-muted/60"
+                  className="h-8 flex-1 rounded-xl border border-border/70 bg-card px-2.5 text-xs font-medium tabular-nums transition-colors hover:bg-muted/60 disabled:opacity-50"
                 >
                   {formatCurrency(amount)}
                 </button>
               ))}
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => setReceived(String(Math.round(totals.total)))}
-                className="h-8 flex-1 rounded-xl border border-foreground/30 bg-muted px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-foreground hover:text-background"
+                className="h-8 flex-1 rounded-xl border border-foreground/30 bg-muted px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-foreground hover:text-background disabled:opacity-50"
               >
                 Exacto
               </button>

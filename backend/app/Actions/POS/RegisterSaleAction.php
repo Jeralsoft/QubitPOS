@@ -156,6 +156,10 @@ class RegisterSaleAction
                 KardexMovement::create($kardex);
             }
 
+            // 7. Generar Asiento Contable Automático de Partida Doble (Fase 5)
+            $totalKardexCost = (float) array_sum(array_column($kardexToCreate, 'total_cost'));
+            app(\App\Actions\Accounting\GenerateAccountingEntryAction::class)->forSale($sale, $totalKardexCost);
+
             return $sale->load(['items.product', 'user', 'cashShift']);
         });
     }

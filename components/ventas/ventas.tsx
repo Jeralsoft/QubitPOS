@@ -3,12 +3,13 @@
 import * as React from 'react'
 import {
   CheckCircle2,
-  ScanBarcode,
+  FileText,
   AlertCircle,
   Printer,
   Lock,
   LockOpen,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/jeralpos/button'
 import { Modal } from '@/components/jeralpos/modal'
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner'
@@ -18,7 +19,8 @@ import { OpenCashModal, type OpenPayload } from '@/components/caja/open-modal'
 import { ProductGrid } from './product-grid'
 import { CartPanel } from './cart-panel'
 import { PaymentModal } from './payment-modal'
-import { ThermalReceipt } from './thermal-receipt'
+import { ThermalReceipt, ThermalReceiptContent } from './thermal-receipt'
+import { posApi, type CreateSalePayload } from '@/lib/api'
 import {
   posProducts,
   customers as initialCustomers,
@@ -35,16 +37,19 @@ import {
 export function Ventas() {
   const { isRegisterOpen, session, openRegister } = usePOSSession()
 
+  const [gridProducts, setGridProducts] = React.useState<Product[]>(posProducts)
   const [items, setItems] = React.useState<CartItem[]>([])
   const [customers, setCustomers] = React.useState<Customer[]>(initialCustomers)
   const [customer, setCustomer] = React.useState<Customer>(FINAL_CONSUMER)
   const [payment, setPayment] = React.useState<PaymentMethodId | null>('efectivo')
   const [payOpen, setPayOpen] = React.useState(false)
+  const [isSubmittingSale, setIsSubmittingSale] = React.useState(false)
   const [successOpen, setSuccessOpen] = React.useState(false)
   const [savedOpen, setSavedOpen] = React.useState(false)
   const [openCashModalOpen, setOpenCashModalOpen] = React.useState(false)
   const [customerPickerOpen, setCustomerPickerOpen] = React.useState(false)
   const [receiptWidth, setReceiptWidth] = React.useState<'80mm' | '58mm'>('80mm')
+  const [showReceiptPreview, setShowReceiptPreview] = React.useState(false)
   const [scanNotification, setScanNotification] = React.useState<{
     type: 'success' | 'error'
     text: string
@@ -52,17 +57,56 @@ export function Ventas() {
 
   // Registro de la última venta confirmada para impresión de ticket
   const [lastSale, setLastSale] = React.useState<{
+    id?: string
     items: CartItem[]
     totals: CartTotals
     customer: Customer
     payment: PaymentMethodId | null
+    cashReceived?: number
+    cashChange?: number
     invoiceNumber: string
+    cufe?: string
+    qrData?: string
     date: Date
   } | null>(null)
 
   const searchInputRef = React.useRef<HTMLInputElement | null>(null)
 
   const totals = React.useMemo(() => computeTotals(items), [items])
+
+  // Cargar catálogo de productos en tiempo real desde el backend Laravel
+  React.useEffect(() => {
+    let active = true
+    async function loadBackendProducts() {
+      try {
+        const res = await posApi.getProducts()
+        if (active && res?.data && res.data.length > 0) {
+          const live: Product[] = res.data.map((p) => ({
+            id: String(p.id),
+            code: p.code,
+            barcode: p.barcode,
+            name: p.name,
+            category: p.category,
+            brand: p.brand,
+            purchasePrice: p.purchasePrice,
+            salePrice: p.salePrice,
+            stock: p.stock,
+            minStock: p.minStock,
+            status: p.status,
+            color: p.color,
+            taxRate: p.taxRate ? Math.round(p.taxRate * 100) : 19,
+          }))
+          setGridProducts(live.filter((p) => p.status === 'activo' && p.stock > 0))
+        }
+      } catch {
+        // En caso de que el backend esté temporalmente inaccesible, se mantiene posProducts
+      }
+    }
+    loadBackendProducts()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const addProduct = React.useCallback((product: Product) => {
     setItems((prev) => {
@@ -102,7 +146,7 @@ export function Ventas() {
   useBarcodeScanner({
     onScan: (barcode) => {
       const cleanBarcode = barcode.trim().toLowerCase()
-      const found = posProducts.find(
+      const found = gridProducts.find(
         (p) => p.barcode.toLowerCase() === cleanBarcode || p.code.toLowerCase() === cleanBarcode,
       )
 
@@ -141,18 +185,10 @@ export function Ventas() {
       }
     },
     onCancel: () => {
-      if (payOpen) {
-        setPayOpen(false)
-      } else if (successOpen) {
-        setSuccessOpen(false)
-        resetSale()
-      } else if (savedOpen) {
-        setSavedOpen(false)
-      } else if (openCashModalOpen) {
-        setOpenCashModalOpen(false)
-      } else if (customerPickerOpen) {
-        setCustomerPickerOpen(false)
-      } else if (items.length > 0) {
+      // Las ventanas y modales no se cierran con Escape para evitar pérdida de datos.
+      // Solo se cierran mediante la 'X' superior o el botón 'Cancelar'.
+      const hasAnyModalOpen = payOpen || successOpen || savedOpen || openCashModalOpen || customerPickerOpen
+      if (!hasAnyModalOpen && items.length > 0) {
         resetSale()
       }
     },
@@ -201,22 +237,85 @@ export function Ventas() {
     setPayOpen(true)
   }
 
-  function confirmPayment() {
-    const invoiceNum = `SETP-${String(Math.floor(100000 + Math.random() * 900000))}`
-    setLastSale({
-      items: [...items],
-      totals: { ...totals },
-      customer,
-      payment,
-      invoiceNumber: invoiceNum,
-      date: new Date(),
-    })
-    setPayOpen(false)
-    setSuccessOpen(true)
+  async function confirmPayment(cashReceived?: number) {
+    if (items.length === 0 || isSubmittingSale) return
+
+    setIsSubmittingSale(true)
+
+    // Formatear payload estricto para Laravel FormRequest y Action
+    const payload: CreateSalePayload = {
+      cash_shift_id: Number(session?.id) || 1,
+      customer_name: customer.name,
+      customer_tax_id: customer.taxId || '222222222222',
+      customer_phone: customer.phone || undefined,
+      payment_method: payment || 'efectivo',
+      cash_received: cashReceived ?? (payment === 'efectivo' ? totals.total : undefined),
+      items: items.map((i) => ({
+        product_id: Number(i.product.id),
+        quantity: i.quantity,
+        unit_price: i.product.salePrice,
+        discount: i.discount,
+        tax_rate: i.product.taxRate ? i.product.taxRate / 100 : 0.19,
+      })),
+    }
+
+    try {
+      const res = await posApi.createSale(payload)
+      const sale = res.data
+
+      // Actualizar el registro de la venta con los datos reales del backend
+      setLastSale({
+        id: sale.id,
+        items: [...items],
+        totals: {
+          subtotal: sale.totals.subtotal,
+          discount: sale.totals.discount,
+          tax: sale.totals.taxAmount,
+          total: sale.totals.total,
+        },
+        customer,
+        payment,
+        cashReceived: sale.totals.cashReceived ?? cashReceived,
+        cashChange: sale.totals.cashChange ?? undefined,
+        invoiceNumber: sale.invoiceNumber,
+        cufe: sale.cufe,
+        qrData: sale.qrData,
+        date: new Date(sale.createdAt),
+      })
+
+      // Descontar existencias localmente en la grilla para reactividad instantánea
+      setGridProducts((prev) =>
+        prev.map((p) => {
+          const sold = items.find((i) => i.product.id === p.id)
+          if (sold) {
+            const remaining = Math.max(0, p.stock - sold.quantity)
+            return { ...p, stock: remaining }
+          }
+          return p
+        }),
+      )
+
+      toast.success(`Factura ${sale.invoiceNumber} registrada con éxito`, {
+        description: `Total: ${formatCurrency(sale.totals.total)} · Kárdex actualizado y CUFE emitido`,
+      })
+
+      setPayOpen(false)
+      setSuccessOpen(true)
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error ? err.message : 'Error desconocido al procesar la venta en caja.'
+
+      toast.error('No se pudo procesar la venta', {
+        description: errorMsg,
+      })
+    } finally {
+      setIsSubmittingSale(false)
+    }
   }
 
   function finishSale() {
     setSuccessOpen(false)
+    setShowReceiptPreview(false)
     resetSale()
   }
 
@@ -224,12 +323,11 @@ export function Ventas() {
     setSavedOpen(true)
   }
 
-  function handleConfirmOpenCash(payload: OpenPayload) {
-    openRegister(payload.openingBalance, payload.register, payload.branch)
+  async function handleConfirmOpenCash(payload: OpenPayload) {
+    await openRegister(payload.openingBalance, payload.register, payload.branch)
     setOpenCashModalOpen(false)
-    setScanNotification({
-      type: 'success',
-      text: `Turno de caja abierto correctamente con ${formatCurrency(payload.openingBalance)}`,
+    toast.success(`Turno de caja abierto correctamente`, {
+      description: `Fondo de apertura: ${formatCurrency(payload.openingBalance)}`,
     })
   }
 
@@ -246,65 +344,73 @@ export function Ventas() {
           </div>
           <Button
             size="sm"
-            variant="outline"
+            variant="navy"
             onClick={() => setOpenCashModalOpen(true)}
-            className="gap-1.5 border-warning/60 text-warning-foreground hover:bg-warning/10"
+            className="h-7 gap-1.5 rounded-xl px-3 text-xs bg-foreground text-background hover:bg-foreground/90 font-semibold"
           >
             <LockOpen className="size-3.5" />
-            Abrir turno
+            Abrir caja ahora
           </Button>
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0 flex-col gap-3 lg:flex-row">
-        {/* Toast flotante de escaneo de código de barras */}
-        {scanNotification && (
-          <div
-            className={`absolute left-4 top-2 z-30 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium shadow-md transition-all ${
-              scanNotification.type === 'success'
-                ? 'border-success/40 bg-success-muted text-success'
-                : 'border-danger/40 bg-danger-muted text-danger'
-            }`}
-          >
-            {scanNotification.type === 'success' ? (
-              <ScanBarcode className="size-4" />
-            ) : (
-              <AlertCircle className="size-4" />
-            )}
-            <span>{scanNotification.text}</span>
-          </div>
-        )}
-
-        <section
-          aria-label="Productos"
-          className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border/75 bg-card/40 p-3.5 shadow-2xs"
+      {/* Notificación flotante de escáner */}
+      {scanNotification && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`absolute top-2 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold shadow-lg backdrop-blur-md transition-all ${
+            scanNotification.type === 'success'
+              ? 'bg-emerald-500/90 text-white shadow-emerald-500/20'
+              : 'bg-rose-500/90 text-white shadow-rose-500/20'
+          }`}
         >
-          <ProductGrid onAdd={addProduct} searchInputRef={searchInputRef} />
+          {scanNotification.type === 'success' ? (
+            <CheckCircle2 className="size-4 shrink-0" />
+          ) : (
+            <AlertCircle className="size-4 shrink-0" />
+          )}
+          <span>{scanNotification.text}</span>
+        </div>
+      )}
+
+      <div className="grid flex-1 min-h-0 grid-cols-1 gap-4 lg:grid-cols-[1fr_24rem] xl:grid-cols-[1fr_26rem]">
+        {/* Catálogo visual y búsqueda */}
+        <section
+          aria-label="Catálogo de productos"
+          className="flex min-h-0 flex-col rounded-3xl border border-border/80 bg-card p-4 shadow-2xs"
+        >
+          <ProductGrid
+            products={gridProducts}
+            onAdd={addProduct}
+            searchInputRef={searchInputRef}
+          />
         </section>
 
-        <aside
-          aria-label="Carrito de venta"
-          className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border-0 bg-transparent lg:w-[24rem] xl:w-[26rem]"
+        {/* Panel lateral: Carrito y Totales */}
+        <section
+          aria-label="Carrito de compra"
+          className="flex min-h-0 flex-col rounded-3xl border border-border/80 bg-card p-4 shadow-2xs"
         >
           <CartPanel
             items={items}
-            totals={totals}
             customer={customer}
             customers={customers}
-            onSelectCustomer={setCustomer}
-            onCreateCustomer={handleCreateCustomer}
+            payment={payment}
+            totals={totals}
             customerPickerOpen={customerPickerOpen}
             onCustomerPickerOpenChange={setCustomerPickerOpen}
-            payment={payment}
+            onSelectCustomer={setCustomer}
+            onCreateCustomer={handleCreateCustomer}
             onSelectPayment={setPayment}
             onChangeQuantity={changeQuantity}
             onChangeDiscount={changeDiscount}
             onRemove={removeItem}
-            onCharge={handleStartCharge}
-            onSave={saveSale}
             onCancel={resetSale}
+            onSave={saveSale}
+            onCharge={handleStartCharge}
           />
-        </aside>
+        </section>
 
         {/* Modal de cobro */}
         <PaymentModal
@@ -314,6 +420,7 @@ export function Ventas() {
           totals={totals}
           customer={customer}
           payment={payment}
+          isSubmitting={isSubmittingSale}
         />
 
         {/* Modal de éxito e impresión de ticket */}
@@ -331,6 +438,16 @@ export function Ventas() {
                 <Printer className="size-4" />
                 Imprimir ticket ({receiptWidth})
               </Button>
+              {lastSale?.id && (
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(`http://localhost:8000/api/pos/sales/${lastSale.id}/xml`, '_blank')}
+                  className="flex-1 gap-2 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                >
+                  <FileText className="size-4" />
+                  XML DIAN (UBL 2.1)
+                </Button>
+              )}
               <Button variant="success" onClick={finishSale} className="flex-1">
                 Nueva venta
               </Button>
@@ -377,6 +494,39 @@ export function Ventas() {
                 58 mm (Mini)
               </button>
             </div>
+
+            {/* Alternar vista previa de la tirilla */}
+            <div className="w-full pt-1">
+              <button
+                type="button"
+                onClick={() => setShowReceiptPreview((v) => !v)}
+                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1.5"
+              >
+                {showReceiptPreview ? 'Ocultar diseño de tirilla' : '👁️ Ver vista previa de la tirilla'}
+              </button>
+
+              {showReceiptPreview && lastSale && (
+                <div className="mt-3 flex justify-center max-h-[300px] overflow-y-auto p-3 rounded-2xl bg-neutral-100 dark:bg-neutral-900 border border-border">
+                  <ThermalReceiptContent
+                    items={lastSale.items}
+                    totals={lastSale.totals}
+                    customer={lastSale.customer}
+                    paymentMethod={lastSale.payment}
+                    invoiceNumber={lastSale.invoiceNumber}
+                    cufe={lastSale.cufe}
+                    qrData={lastSale.qrData}
+                    date={lastSale.date}
+                    cashReceived={lastSale.cashReceived ?? lastSale.totals.total}
+                    cashChange={lastSale.cashChange ?? 0}
+                    cashierName={session?.user ?? 'Laura Martínez'}
+                    branchName={session?.branch ?? 'Sede Principal'}
+                    registerName={session?.register ?? 'Caja #001'}
+                    width={receiptWidth}
+                    isInlinePreview={true}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </Modal>
 
@@ -408,9 +558,11 @@ export function Ventas() {
             customer={lastSale.customer}
             paymentMethod={lastSale.payment}
             invoiceNumber={lastSale.invoiceNumber}
+            cufe={lastSale.cufe}
+            qrData={lastSale.qrData}
             date={lastSale.date}
-            cashReceived={lastSale.totals.total}
-            cashChange={0}
+            cashReceived={lastSale.cashReceived ?? lastSale.totals.total}
+            cashChange={lastSale.cashChange ?? 0}
             cashierName={session?.user ?? 'Laura Martínez'}
             branchName={session?.branch ?? 'Sede Principal'}
             registerName={session?.register ?? 'Caja #001'}
@@ -421,4 +573,3 @@ export function Ventas() {
     </div>
   )
 }
-

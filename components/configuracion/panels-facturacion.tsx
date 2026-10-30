@@ -26,13 +26,15 @@ import {
 } from './settings-ui'
 import {
   prefixes as seedPrefixes,
-  resolutions,
+  resolutions as seedResolutions,
   resolutionStatusVariant,
   dianConfig,
   sequences as seedSequences,
   type Prefix,
+  type Resolution,
   type DianConfig,
 } from './mock-data'
+import { settingsApi } from '@/lib/api'
 
 type Toast = (msg: string, kind?: 'success' | 'error') => void
 
@@ -117,6 +119,28 @@ export function PrefijosPanel({ onToast }: { onToast: Toast }) {
 /* Resoluciones ------------------------------------------------------ */
 
 export function ResolucionesPanel({ onToast }: { onToast: Toast }) {
+  const [items, setItems] = React.useState<Resolution[]>(seedResolutions)
+
+  React.useEffect(() => {
+    settingsApi
+      .getResolutions()
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          const liveRes: Resolution[] = res.data.map((r) => ({
+            id: String(r.id),
+            number: r.resolution_number,
+            prefix: r.prefix,
+            range: `${r.range_from.toLocaleString('es-CO')} - ${r.range_to.toLocaleString('es-CO')}`,
+            issuedAt: r.issued_at,
+            expiresAt: r.expires_at,
+            status: r.status,
+          }))
+          setItems(liveRes)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
@@ -140,7 +164,7 @@ export function ResolucionesPanel({ onToast }: { onToast: Toast }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {resolutions.map((r) => (
+          {items.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="font-mono text-sm font-medium text-foreground">{r.number}</TableCell>
               <TableCell className="text-muted-foreground">{r.prefix}</TableCell>
@@ -149,7 +173,7 @@ export function ResolucionesPanel({ onToast }: { onToast: Toast }) {
                 {r.issuedAt} → {r.expiresAt}
               </TableCell>
               <TableCell>
-                <Badge variant={resolutionStatusVariant[r.status]} size="sm" dot>
+                <Badge variant={resolutionStatusVariant[r.status] || 'neutral'} size="sm" dot>
                   {r.status}
                 </Badge>
               </TableCell>
@@ -276,12 +300,44 @@ export function DianPanel({ onToast }: { onToast: Toast }) {
   const [form, setForm] = React.useState<DianConfig>(dianConfig)
   const [saving, setSaving] = React.useState(false)
   const set = <K extends keyof DianConfig>(k: K, v: DianConfig[K]) => setForm((p) => ({ ...p, [k]: v }))
-  const save = () => {
-    setSaving(true)
-    window.setTimeout(() => {
+
+  React.useEffect(() => {
+    settingsApi
+      .getDian()
+      .then((res) => {
+        if (res.data) {
+          setForm({
+            environment: res.data.environment || 'Pruebas',
+            companyType: res.data.company_type || dianConfig.companyType,
+            fiscalResponsibility: res.data.fiscal_responsibility || dianConfig.fiscalResponsibility,
+            softwareId: res.data.software_id || dianConfig.softwareId,
+            testSetId: res.data.test_set_id || dianConfig.testSetId,
+            technicalKey: res.data.technical_key || dianConfig.technicalKey,
+            connected: res.data.is_connected ?? true,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const save = async () => {
+    try {
+      setSaving(true)
+      await settingsApi.updateDian({
+        environment: form.environment,
+        company_type: form.companyType,
+        fiscal_responsibility: form.fiscalResponsibility,
+        software_id: form.softwareId,
+        test_set_id: form.testSetId,
+        technical_key: form.technicalKey,
+        is_connected: form.connected,
+      })
+      onToast('Datos técnicos DIAN guardados en el servidor')
+    } catch {
+      onToast('Error al guardar en el servidor', 'error')
+    } finally {
       setSaving(false)
-      onToast('Datos DIAN guardados')
-    }, 700)
+    }
   }
   return (
     <div className="flex flex-col gap-6">

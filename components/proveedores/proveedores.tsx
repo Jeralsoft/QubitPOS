@@ -39,6 +39,8 @@ import { SortButton } from '@/components/jeralpos/sort-button'
 import { RowActionsMenu } from '@/components/jeralpos/row-actions'
 import { Pagination } from '@/components/jeralpos/pagination'
 import { DataToast } from '@/components/jeralpos/data-toast'
+import { suppliersApi, type SupplierRecord } from '@/lib/api'
+import { toast as sonnerToast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   suppliers as seedSuppliers,
@@ -96,10 +98,52 @@ export function Proveedores() {
   const [bulkDelete, setBulkDelete] = React.useState(false)
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
 
-  React.useEffect(() => {
-    const t = window.setTimeout(() => setLoading(false), 700)
-    return () => window.clearTimeout(t)
+  const loadSuppliers = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await suppliersApi.getSuppliers()
+      if (res?.data && res.data.length > 0) {
+        const live: Supplier[] = res.data.map((s) => ({
+          id: String(s.id),
+          personType: 'juridica',
+          documentType: 'NIT',
+          document: s.tax_id,
+          businessName: s.name,
+          tradeName: s.name,
+          displayName: s.name,
+          contactName: s.contact_name ?? 'Contacto principal',
+          phone: s.phone ?? '',
+          mobile: s.phone ?? '',
+          email: s.email ?? '',
+          address: s.address ?? '',
+          city: s.city ?? 'Medellín',
+          department: 'Antioquia',
+          type: 'productos',
+          paymentTerms: `${s.credit_days || 30} días`,
+          creditDays: s.credit_days || 30,
+          creditLimit: Number(s.credit_limit) || 0,
+          status: (s.status as SupplierStatus) || 'activo',
+          createdAt: '2026-01-15',
+          totalPurchases: 0,
+          monthPurchases: 0,
+          totalPaid: 0,
+          purchaseCount: 0,
+          balance: 0,
+          lastPurchase: 'Sin compras',
+          color: 'oklch(0.65 0.17 145)',
+        }))
+        setItems(live)
+      }
+    } catch {
+      // Fallback a seedSuppliers
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  React.useEffect(() => {
+    loadSuppliers()
+  }, [loadSuppliers])
 
   const showToast = React.useCallback((msg: string, kind: ToastKind = 'success') => {
     setToast({ msg, kind })
@@ -259,8 +303,21 @@ export function Proveedores() {
     setBulkDelete(false)
   }
 
-  const handleCreate = (name: string) => {
+  const handleCreate = async (name: string, payload?: any) => {
     setCreateOpen(false)
+    if (payload) {
+      try {
+        await suppliersApi.createSupplier(payload)
+        sonnerToast.success(`Proveedor "${name}" registrado con éxito`, {
+          description: `NIT: ${payload.tax_id} · Cupo: ${payload.credit_limit}`,
+        })
+        await loadSuppliers()
+        return
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error desconocido'
+        sonnerToast.error('No se pudo crear el proveedor', { description: msg })
+      }
+    }
     showToast(`Proveedor "${name}" creado`)
   }
 

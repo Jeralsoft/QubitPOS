@@ -19,6 +19,7 @@ import {
   type CompanyInfo,
   type RegionalConfig,
 } from './mock-data'
+import { settingsApi } from '@/lib/api'
 
 type Toast = (msg: string, kind?: 'success' | 'error') => void
 
@@ -29,12 +30,49 @@ export function EmpresaPanel({ onToast }: { onToast: Toast }) {
   const [saving, setSaving] = React.useState(false)
   const set = (k: keyof CompanyInfo, v: string) => setForm((p) => ({ ...p, [k]: v }))
 
-  const save = () => {
-    setSaving(true)
-    window.setTimeout(() => {
+  React.useEffect(() => {
+    settingsApi
+      .getCompany()
+      .then((res) => {
+        if (res.data) {
+          setForm({
+            tradeName: res.data.trade_name || companyInfo.tradeName,
+            legalName: res.data.legal_name || companyInfo.legalName,
+            nit: res.data.nit || companyInfo.nit,
+            phone: res.data.phone || companyInfo.phone,
+            email: res.data.email || companyInfo.email,
+            address: res.data.address || companyInfo.address,
+            city: res.data.city || companyInfo.city,
+            department: res.data.department || companyInfo.department,
+            website: res.data.website || companyInfo.website,
+          })
+        }
+      })
+      .catch(() => {
+        // Fallback al valor inicial
+      })
+  }, [])
+
+  const save = async () => {
+    try {
+      setSaving(true)
+      await settingsApi.updateCompany({
+        trade_name: form.tradeName,
+        legal_name: form.legalName,
+        nit: form.nit,
+        phone: form.phone,
+        email: form.email,
+        address: form.address,
+        city: form.city,
+        department: form.department,
+        website: form.website,
+      })
+      onToast('Información de empresa guardada en el servidor')
+    } catch {
+      onToast('Error guardando en el servidor, cambio local mantenido', 'error')
+    } finally {
       setSaving(false)
-      onToast('Información de empresa guardada')
-    }, 700)
+    }
   }
 
   return (

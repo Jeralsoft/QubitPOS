@@ -1,13 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { Search, Package, Plus, Barcode } from 'lucide-react'
+import { Package, Plus, Barcode } from 'lucide-react'
 import { Input } from '@/components/jeralpos/input'
 import { Badge } from '@/components/jeralpos/badge'
 import { cn } from '@/lib/utils'
 import {
-  posProducts,
-  posCategories,
+  posProducts as defaultPosProducts,
+  posCategories as defaultPosCategories,
   formatCurrency,
   stockLevelLabel,
   type Product,
@@ -15,16 +15,22 @@ import {
 
 interface ProductGridProps {
   onAdd: (product: Product) => void
+  products?: Product[]
   searchInputRef?: React.RefObject<HTMLInputElement | null>
 }
 
-export function ProductGrid({ onAdd, searchInputRef }: ProductGridProps) {
+export function ProductGrid({ onAdd, products, searchInputRef }: ProductGridProps) {
   const [query, setQuery] = React.useState('')
   const [category, setCategory] = React.useState<string | null>(null)
 
+  const activeProducts = products ?? defaultPosProducts
+  const activeCategories = React.useMemo(() => {
+    return Array.from(new Set(activeProducts.map((p) => p.category)))
+  }, [activeProducts])
+
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    return posProducts.filter((p) => {
+    return activeProducts.filter((p) => {
       const matchesCategory = !category || p.category === category
       const matchesQuery =
         !q ||
@@ -33,7 +39,7 @@ export function ProductGrid({ onAdd, searchInputRef }: ProductGridProps) {
         p.barcode.includes(q)
       return matchesCategory && matchesQuery
     })
-  }, [query, category])
+  }, [activeProducts, query, category])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -41,8 +47,8 @@ export function ProductGrid({ onAdd, searchInputRef }: ProductGridProps) {
       if (!q) return
 
       // Búsqueda directa por código de barras exacto o código de producto
-      const exactMatch = posProducts.find(
-        (p) => p.barcode === q || p.code.toLowerCase() === q
+      const exactMatch = activeProducts.find(
+        (p) => p.barcode === q || p.code.toLowerCase() === q,
       )
       if (exactMatch) {
         e.preventDefault()
@@ -89,7 +95,7 @@ export function ProductGrid({ onAdd, searchInputRef }: ProductGridProps) {
           <CategoryChip active={!category} onClick={() => setCategory(null)}>
             Todos los artículos
           </CategoryChip>
-          {posCategories.map((c) => (
+          {activeCategories.map((c) => (
             <CategoryChip key={c} active={category === c} onClick={() => setCategory(c)}>
               {c}
             </CategoryChip>

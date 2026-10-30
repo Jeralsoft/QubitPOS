@@ -40,6 +40,7 @@ import { RowActionsMenu } from '@/components/jeralpos/row-actions'
 import { Pagination } from '@/components/jeralpos/pagination'
 import { DataToast } from '@/components/jeralpos/data-toast'
 import { cn } from '@/lib/utils'
+import { customersApi, type CustomerRecord } from '@/lib/api'
 import {
   customers as seedCustomers,
   cities,
@@ -96,10 +97,55 @@ export function Clientes() {
   const [bulkDelete, setBulkDelete] = React.useState(false)
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
 
+  const loadCustomers = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await customersApi.getAll({ q: query, status })
+      if (res.data && res.data.length > 0) {
+        const mapped = res.data.map((r): Customer => {
+          const isJuridica = r.document_type === 'NIT' || !!r.trade_name
+          return {
+            id: String(r.id),
+            personType: isJuridica ? 'juridica' : 'natural',
+            documentType: (r.document_type as any) || 'CC',
+            document: r.document_number,
+            dv: r.dv || undefined,
+            firstName: r.first_name || '',
+            lastName: r.last_name || '',
+            businessName: r.trade_name || r.full_name,
+            displayName: r.full_name,
+            phone: r.phone || '',
+            mobile: r.phone || '',
+            email: r.email || '',
+            invoiceEmail: r.email || undefined,
+            address: r.address || '',
+            city: r.city || 'Bogotá',
+            department: r.department || 'Cundinamarca',
+            type: (r.customer_type as any) || 'minorista',
+            creditLimit: Number(r.credit_limit || 0),
+            creditDays: Number(r.credit_days || 0),
+            priceList: 'Precio General',
+            status: r.status,
+            createdAt: r.created_at || new Date().toISOString(),
+            totalPurchases: 0,
+            purchaseCount: 0,
+            balance: Number(r.current_balance || 0),
+            lastPurchase: 'Sin compras',
+            color: '#0284c7',
+          }
+        })
+        setItems(mapped)
+      }
+    } catch {
+      // mantener seed si falla conexión
+    } finally {
+      setLoading(false)
+    }
+  }, [query, status])
+
   React.useEffect(() => {
-    const t = window.setTimeout(() => setLoading(false), 700)
-    return () => window.clearTimeout(t)
-  }, [])
+    loadCustomers()
+  }, [loadCustomers])
 
   const showToast = React.useCallback((msg: string, kind: ToastKind = 'success') => {
     setToast({ msg, kind })
@@ -229,7 +275,12 @@ export function Clientes() {
     })
   }
 
-  const handleToggleStatus = (c: Customer) => {
+  const handleToggleStatus = async (c: Customer) => {
+    try {
+      await customersApi.toggleStatus(c.id)
+    } catch {
+      // ignorar si es mock
+    }
     setItems((prev) =>
       prev.map((x) =>
         x.id === c.id
@@ -242,8 +293,13 @@ export function Clientes() {
     )
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!toDelete) return
+    try {
+      await customersApi.delete(toDelete.id)
+    } catch {
+      // ignorar si es mock
+    }
     setItems((prev) => prev.filter((c) => c.id !== toDelete.id))
     setSelected((prev) => {
       const next = new Set(prev)
@@ -261,13 +317,70 @@ export function Clientes() {
     setBulkDelete(false)
   }
 
-  const handleCreate = (name: string) => {
+  const handleCreate = async (name: string, data?: Partial<Customer>) => {
     setCreateOpen(false)
+    try {
+      if (data) {
+        await customersApi.create({
+          document_type: data.documentType,
+          document_number: data.document,
+          dv: data.dv,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          trade_name: data.businessName,
+          full_name: data.displayName || name,
+          email: data.email,
+          phone: data.phone || data.mobile,
+          address: data.address,
+          city: data.city,
+          department: data.department,
+          customer_type: data.type,
+          credit_limit: data.creditLimit,
+          credit_days: data.creditDays,
+          status: data.status || 'activo',
+        })
+        showToast(`Cliente "${name}" registrado en base de datos.`)
+        loadCustomers()
+        return
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Error al registrar cliente.'
+      showToast(msg, 'error')
+    }
     showToast(`Cliente "${name}" creado`)
   }
 
-  const handleEditSave = (name: string) => {
+  const handleEditSave = async (name: string, data?: Partial<Customer>) => {
+    const customerId = editing?.id
     setEditing(null)
+    try {
+      if (customerId && data) {
+        await customersApi.update(customerId, {
+          document_type: data.documentType,
+          document_number: data.document,
+          dv: data.dv,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          trade_name: data.businessName,
+          full_name: data.displayName || name,
+          email: data.email,
+          phone: data.phone || data.mobile,
+          address: data.address,
+          city: data.city,
+          department: data.department,
+          customer_type: data.type,
+          credit_limit: data.creditLimit,
+          credit_days: data.creditDays,
+          status: data.status || 'activo',
+        })
+        showToast(`Cliente "${name}" actualizado en base de datos.`)
+        loadCustomers()
+        return
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Error al actualizar cliente.'
+      showToast(msg, 'error')
+    }
     showToast(`Cliente "${name}" actualizado`)
   }
 

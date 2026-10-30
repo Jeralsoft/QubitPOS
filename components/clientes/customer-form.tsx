@@ -33,7 +33,7 @@ import {
 interface CustomerFormProps {
   initial?: Customer | null
   onCancel: () => void
-  onSubmit: (displayName: string) => void
+  onSubmit: (displayName: string, data?: Partial<Customer>) => void
 }
 
 interface FormState {
@@ -64,6 +64,46 @@ interface FormState {
 
 type Tab = 'identificacion' | 'contacto' | 'comercial'
 type Errors = Partial<Record<keyof FormState, string>>
+
+const CUSTOMER_STATUS_SEMAFORO: Record<
+  CustomerStatus,
+  {
+    label: string
+    dotColor: string
+    selectedClass: string
+    unselectedHover: string
+    badgeClass: string
+  }
+> = {
+  activo: {
+    label: 'Activo',
+    dotColor: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]',
+    selectedClass: 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600 dark:hover:text-emerald-400',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  },
+  moroso: {
+    label: 'Moroso',
+    dotColor: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)]',
+    selectedClass: 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-600 dark:hover:text-amber-400',
+    badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  },
+  inactivo: {
+    label: 'Inactivo',
+    dotColor: 'bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.7)]',
+    selectedClass: 'border-slate-500 bg-slate-500/10 text-slate-700 dark:text-slate-300 ring-1 ring-slate-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-slate-500/40 hover:bg-slate-500/5 hover:text-slate-600 dark:hover:text-slate-400',
+    badgeClass: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30',
+  },
+  bloqueado: {
+    label: 'Bloqueado',
+    dotColor: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]',
+    selectedClass: 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-rose-500/40 hover:bg-rose-500/5 hover:text-rose-600 dark:hover:text-rose-400',
+    badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  },
+}
 
 export function CustomerForm({ initial, onCancel, onSubmit }: CustomerFormProps) {
   const [activeTab, setActiveTab] = React.useState<Tab>('identificacion')
@@ -424,17 +464,35 @@ export function CustomerForm({ initial, onCancel, onSubmit }: CustomerFormProps)
         {/* TAB 3: CONDICIONES COMERCIALES, CRÉDITO & ESTADO */}
         {activeTab === 'comercial' && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
-            {/* ESTADO EN DISPOSICIÓN HORIZONTAL */}
+            {/* ESTADO EN DISPOSICIÓN HORIZONTAL CON SEMÁFORO */}
             <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 space-y-2.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Estado del cliente
-                </Label>
-                <span className="text-xs text-muted-foreground">Habilitación para ventas y facturación</span>
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                    Estado del cliente
+                  </Label>
+                  <span className="text-[11px] text-muted-foreground">Semáforo de crédito y habilitación comercial</span>
+                </div>
+                {/* Indicador en vivo de semáforo */}
+                <div
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all',
+                    CUSTOMER_STATUS_SEMAFORO[form.status].badgeClass
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'size-2 rounded-full animate-pulse',
+                      CUSTOMER_STATUS_SEMAFORO[form.status].dotColor
+                    )}
+                  />
+                  <span>{CUSTOMER_STATUS_SEMAFORO[form.status].label}</span>
+                </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full">
                 {(Object.keys(statusLabel) as CustomerStatus[]).map((value) => {
                   const selected = form.status === value
+                  const sem = CUSTOMER_STATUS_SEMAFORO[value]
                   return (
                     <button
                       key={value}
@@ -442,14 +500,21 @@ export function CustomerForm({ initial, onCancel, onSubmit }: CustomerFormProps)
                       onClick={() => set('status', value)}
                       aria-pressed={selected}
                       className={cn(
-                        'flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all select-none',
+                        'flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-xs transition-all select-none',
                         selected
-                          ? 'border-foreground bg-foreground text-background font-semibold shadow-xs'
-                          : 'border-border/80 bg-card text-foreground/80 hover:bg-muted hover:text-foreground',
+                          ? sem.selectedClass
+                          : cn('border-border/80 bg-card text-foreground/80', sem.unselectedHover)
                       )}
                     >
-                      {selected && <Check className="size-4 shrink-0 stroke-[2.5]" aria-hidden />}
+                      <span
+                        className={cn(
+                          'size-2.5 shrink-0 rounded-full transition-all',
+                          sem.dotColor,
+                          !selected && 'opacity-60 scale-90'
+                        )}
+                      />
                       <span>{statusLabel[value]}</span>
+                      {selected && <Check className="size-3.5 shrink-0 stroke-[2.5] ml-0.5" aria-hidden />}
                     </button>
                   )
                 })}

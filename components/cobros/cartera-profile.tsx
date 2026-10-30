@@ -76,7 +76,6 @@ export function CarteraProfile({
     <div className="fixed inset-0 z-50 flex justify-end">
       <div
         className="absolute inset-0 bg-background/70 backdrop-blur-sm animate-in fade-in duration-150"
-        onClick={onClose}
         aria-hidden
       />
       <aside

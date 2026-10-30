@@ -27,6 +27,8 @@ import {
   TableCell,
 } from '@/components/jeralpos/table'
 import { ChartCard } from '@/components/reportes/charts'
+import { contabilidadApi } from '@/lib/api'
+import { toast as sonnerToast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   sectionGroups,
@@ -211,6 +213,30 @@ function DashboardSection({ onExport }: { onExport: (kind: string) => void }) {
 
 function PlanSection({ onToast }: { onToast: (msg: string, kind?: ToastKind) => void }) {
   const [items, setItems] = React.useState<Account[]>(seedAccounts)
+
+  React.useEffect(() => {
+    let active = true
+    async function loadLivePuc() {
+      try {
+        const res = await contabilidadApi.getPuc()
+        if (active && res?.data && res.data.length > 0) {
+          const live: Account[] = res.data.map((a) => ({
+            code: a.code,
+            name: a.name,
+            type: a.type as any,
+            nature: (a.nature === 'D' ? 'Débito' : 'Crédito') as any,
+            balance: 0,
+            active: a.is_active ?? true,
+          }))
+          setItems(live)
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    loadLivePuc()
+    return () => { active = false }
+  }, [])
   const [query, setQuery] = React.useState('')
   const [type, setType] = React.useState<string>('all')
 
@@ -322,6 +348,36 @@ function PlanSection({ onToast }: { onToast: (msg: string, kind?: ToastKind) => 
 
 function AsientosSection({ onToast }: { onToast: (msg: string, kind?: ToastKind) => void }) {
   const [items, setItems] = React.useState<JournalEntry[]>(seedEntries)
+
+  React.useEffect(() => {
+    let active = true
+    async function loadLiveEntries() {
+      try {
+        const res = await contabilidadApi.getEntries()
+        if (active && res?.data && res.data.length > 0) {
+          const live: JournalEntry[] = res.data.map((e) => ({
+            id: String(e.id),
+            number: e.consecutive,
+            date: e.entry_date,
+            concept: e.concept,
+            reference: e.reference_id ?? '—',
+            status: e.status === 'POSTED' ? 'Contabilizado' : 'Borrador',
+            lines: (e.lines ?? []).map((l) => ({
+              account: l.account?.code ? `${l.account.code} - ${l.account.name}` : `Cuenta ${l.accounting_account_id}`,
+              description: l.notes ?? l.third_party_name ?? e.concept,
+              debit: Number(l.debit),
+              credit: Number(l.credit),
+            })),
+          }))
+          setItems(live)
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    loadLiveEntries()
+    return () => { active = false }
+  }, [])
   const [open, setOpen] = React.useState(false)
 
   const nextNumber = React.useMemo(() => {
@@ -547,9 +603,35 @@ function MayorSection({ onExport }: { onExport: (kind: string) => void }) {
 }
 
 function BalanceSection({ onExport }: { onExport: (kind: string) => void }) {
+  const [rows, setRows] = React.useState<typeof trialBalance>(trialBalance)
+
+  React.useEffect(() => {
+    let active = true
+    async function loadLiveTrialBalance() {
+      try {
+        const res = await contabilidadApi.getTrialBalance()
+        if (active && res?.data && res.data.accounts && res.data.accounts.length > 0) {
+          const live = res.data.accounts.map((a) => ({
+            code: a.code,
+            name: a.name,
+            debitMov: a.debitMov,
+            creditMov: a.creditMov,
+            debitBal: a.debitBal,
+            creditBal: a.creditBal,
+          }))
+          setRows(live)
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    loadLiveTrialBalance()
+    return () => { active = false }
+  }, [])
+
   const totals = React.useMemo(
     () =>
-      trialBalance.reduce(
+      rows.reduce(
         (acc, r) => ({
           debitMov: acc.debitMov + r.debitMov,
           creditMov: acc.creditMov + r.creditMov,
@@ -558,7 +640,7 @@ function BalanceSection({ onExport }: { onExport: (kind: string) => void }) {
         }),
         { debitMov: 0, creditMov: 0, debitBal: 0, creditBal: 0 },
       ),
-    [],
+    [rows],
   )
   const balanced = totals.debitBal === totals.creditBal
 
@@ -591,7 +673,7 @@ function BalanceSection({ onExport }: { onExport: (kind: string) => void }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {trialBalance.map((r) => (
+            {rows.map((r) => (
               <TableRow key={r.code}>
                 <TableCell className="font-medium tabular-nums">{r.code}</TableCell>
                 <TableCell>{r.name}</TableCell>

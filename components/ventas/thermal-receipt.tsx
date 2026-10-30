@@ -1,7 +1,9 @@
 'use client'
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { formatCOP } from '@/lib/currency'
+import { cn } from '@/lib/utils'
 import type { CartItem, CartTotals, Customer, PaymentMethodId } from './mock-data'
 
 export interface ThermalReceiptProps {
@@ -12,18 +14,21 @@ export interface ThermalReceiptProps {
   cashReceived?: number
   cashChange?: number
   invoiceNumber?: string
+  cufe?: string
+  qrData?: string
   date?: Date
   cashierName?: string
   branchName?: string
   registerName?: string
   width?: '80mm' | '58mm'
+  isInlinePreview?: boolean
 }
 
 /**
- * Componente de Ticket Térmico optimizado para impresoras POS de 80mm y 58mm.
- * Solo es visible durante la acción de impresión (@media print) o en vista previa.
+ * Contenido puro de la tirilla térmica para ser reutilizado
+ * tanto en la vista previa en pantalla como en la impresión física.
  */
-export function ThermalReceipt({
+export function ThermalReceiptContent({
   items,
   totals,
   customer,
@@ -31,11 +36,14 @@ export function ThermalReceipt({
   cashReceived = 0,
   cashChange = 0,
   invoiceNumber = 'SETP-001248',
+  cufe,
+  qrData,
   date = new Date(),
   cashierName = 'Laura Martínez',
   branchName = 'Sede Principal',
   registerName = 'Caja #001',
   width = '80mm',
+  isInlinePreview = false,
 }: ThermalReceiptProps) {
   const is58mm = width === '58mm'
 
@@ -55,17 +63,22 @@ export function ThermalReceipt({
     second: '2-digit',
   })
 
-  // CUFE simulado conforme al estándar DIAN
-  const cufe =
+  // CUFE legal o simulado conforme al estándar DIAN
+  const finalCufe =
+    cufe ||
     '8f4a1b9c2d3e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e'
 
   return (
     <div
-      id="thermal-receipt"
-      className={is58mm ? 'receipt-58mm' : ''}
+      className={cn(
+        'receipt-content text-black bg-white',
+        is58mm ? 'receipt-58mm' : '',
+        isInlinePreview ? 'p-4 rounded-xl shadow-md border border-neutral-300 text-left' : '',
+      )}
       style={{
-        display: 'none',
         fontFamily: "'Courier New', Courier, monospace",
+        width: isInlinePreview ? (is58mm ? '280px' : '340px') : undefined,
+        lineHeight: 1.25,
       }}
     >
       {/* 1. Encabezado de Empresa */}
@@ -73,16 +86,16 @@ export function ThermalReceipt({
         <p style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 2px 0' }}>
           QUBIT SOLUCIONES POS S.A.S.
         </p>
-        <p style={{ margin: '0 0 1px 0' }}>NIT: 901.456.789-3</p>
-        <p style={{ margin: '0 0 1px 0' }}>Responsable de IVA</p>
-        <p style={{ margin: '0 0 1px 0' }}>Calle 30 # 45-12, Local 3 · Medellín</p>
-        <p style={{ margin: '0 0 1px 0' }}>Tel: +57 (604) 444-8899</p>
+        <p style={{ margin: '0 0 1px 0', fontSize: '10px' }}>NIT: 901.456.789-3</p>
+        <p style={{ margin: '0 0 1px 0', fontSize: '10px' }}>Responsable de IVA</p>
+        <p style={{ margin: '0 0 1px 0', fontSize: '10px' }}>Calle 30 # 45-12, Local 3 · Medellín</p>
+        <p style={{ margin: '0 0 1px 0', fontSize: '10px' }}>Tel: +57 (604) 444-8899</p>
       </div>
 
       <div style={{ borderTop: '1px dashed #000', margin: '6px 0' }} />
 
       {/* 2. Resolución DIAN */}
-      <div style={{ fontSize: '10px', textAlign: 'center', margin: '4px 0' }}>
+      <div style={{ fontSize: '9px', textAlign: 'center', margin: '4px 0' }}>
         <p style={{ margin: '0' }}>Resolución DIAN No. 18764000001234</p>
         <p style={{ margin: '0' }}>Vigencia: 2026-01-15 a 2027-01-15 (12 meses)</p>
         <p style={{ margin: '0' }}>Rango autorizado: SETP 990000001 al 995000000</p>
@@ -112,7 +125,7 @@ export function ThermalReceipt({
           <strong>Cliente:</strong> {customer.name}
         </p>
         <p style={{ margin: '0' }}>
-          <strong>NIT/CC:</strong> {customer.taxId}
+          <strong>NIT/CC:</strong> {customer.taxId || '222222222222 (Consumidor Final)'}
         </p>
         {customer.phone && (
           <p style={{ margin: '0' }}>
@@ -124,65 +137,63 @@ export function ThermalReceipt({
       <div style={{ borderTop: '1px dashed #000', margin: '6px 0' }} />
 
       {/* 5. Tabla de Artículos */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid #000', textAlign: 'left' }}>
-            <th style={{ padding: '2px 0', width: '15%' }}>CANT</th>
-            <th style={{ padding: '2px 0', width: '50%' }}>DESCRIPCIÓN</th>
-            <th style={{ padding: '2px 0', width: '35%', textAlign: 'right' }}>TOTAL</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => {
-            const lineVal = Math.max(0, item.product.salePrice * item.quantity - item.discount)
-            return (
-              <tr key={item.product.id} style={{ verticalAlign: 'top' }}>
-                <td style={{ padding: '2px 0' }}>{item.quantity}</td>
-                <td style={{ padding: '2px 0' }}>
-                  <div>{item.product.name}</div>
-                  <div style={{ fontSize: '9px', color: '#333' }}>
-                    {formatCOP(item.product.salePrice)} c/u
-                    {item.discount > 0 && ` (Desc: -${formatCOP(item.discount)})`}
-                  </div>
-                </td>
-                <td style={{ padding: '2px 0', textAlign: 'right' }}>{formatCOP(lineVal)}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <div style={{ fontSize: '10px', margin: '6px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', borderBottom: '1px dashed #000', paddingBottom: '3px' }}>
+          <span style={{ flex: 1 }}>DESCRIPCIÓN / CANT.</span>
+          <span style={{ textAlign: 'right', width: '70px' }}>TOTAL</span>
+        </div>
+        <div style={{ marginTop: '4px' }}>
+          {items.map((item, idx) => (
+            <div key={idx} style={{ marginBottom: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                <span style={{ flex: 1, wordBreak: 'break-word' }}>{item.product.name}</span>
+                <span style={{ textAlign: 'right', width: '70px' }}>
+                  {formatCOP(item.product.salePrice * item.quantity - item.discount)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#333' }}>
+                <span>
+                  {item.quantity} x {formatCOP(item.product.salePrice)}
+                  {item.discount > 0 && ` (Desc. -${formatCOP(item.discount)})`}
+                </span>
+                <span>IVA 19%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div style={{ borderTop: '1px dashed #000', margin: '6px 0' }} />
 
-      {/* 6. Discriminación de IVA y Totales */}
-      <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
+      {/* 6. Totales y Desglose de Impuestos */}
+      <div style={{ fontSize: '10px', margin: '4px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Subtotal:</span>
+          <span>SUBTOTAL:</span>
           <span>{formatCOP(totals.subtotal)}</span>
         </div>
         {totals.discount > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Descuento total:</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666' }}>
+            <span>DESCUENTO:</span>
             <span>-{formatCOP(totals.discount)}</span>
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Base gravable (19%):</span>
+          <span>BASE GRAVABLE (19%):</span>
           <span>{formatCOP(baseGravable)}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>IVA generado (19%):</span>
+          <span>IVA GENERADO (19%):</span>
           <span>{formatCOP(valorIVA)}</span>
         </div>
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            fontWeight: 'bold',
             fontSize: '13px',
-            borderTop: '1px solid #000',
+            fontWeight: 'bold',
             marginTop: '4px',
-            paddingTop: '4px',
+            borderTop: '1px solid #000',
+            paddingTop: '3px',
           }}
         >
           <span>TOTAL A PAGAR:</span>
@@ -193,19 +204,19 @@ export function ThermalReceipt({
       <div style={{ borderTop: '1px dashed #000', margin: '6px 0' }} />
 
       {/* 7. Medio de Pago y Cambio */}
-      <div style={{ fontSize: '10px' }}>
+      <div style={{ fontSize: '10px', margin: '4px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Medio de pago:</span>
-          <span style={{ textTransform: 'capitalize' }}>{paymentMethod ?? 'Efectivo'}</span>
+          <span style={{ textTransform: 'uppercase' }}>FORMA DE PAGO:</span>
+          <span style={{ fontWeight: 'bold' }}>{paymentMethod || 'EFECTIVO'}</span>
         </div>
         {paymentMethod === 'efectivo' && cashReceived > 0 && (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Efectivo recibido:</span>
+              <span>VALOR RECIBIDO:</span>
               <span>{formatCOP(cashReceived)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
-              <span>Cambio / Vuelto:</span>
+              <span>CAMBIO / DEVUELTA:</span>
               <span>{formatCOP(cashChange)}</span>
             </div>
           </>
@@ -216,8 +227,8 @@ export function ThermalReceipt({
 
       {/* 8. Representación Gráfica CUFE y Código QR */}
       <div style={{ textAlign: 'center', fontSize: '9px', margin: '6px 0' }}>
-        <p style={{ margin: '0 0 4px 0', wordBreak: 'break-all', fontSize: '8px' }}>
-          <strong>CUFE:</strong> {cufe}
+        <p style={{ margin: '0 0 4px 0', wordBreak: 'break-all', fontSize: '7.5px' }}>
+          <strong>CUFE:</strong> {finalCufe}
         </p>
 
         {/* QR Code SVG Reglamentario */}
@@ -259,7 +270,7 @@ export function ThermalReceipt({
           </svg>
         </div>
         <p style={{ margin: '2px 0', fontSize: '8px', color: '#555' }}>
-          Consulte su documento en: https://catalogo-vpfe.dian.gov.co
+          Consulte su documento en: {qrData || 'https://catalogo-vpfe.dian.gov.co'}
         </p>
       </div>
 
@@ -273,5 +284,34 @@ export function ThermalReceipt({
         </p>
       </div>
     </div>
+  )
+}
+
+/**
+ * Componente de Ticket Térmico montado directamente en document.body mediante Portal
+ * para garantizar que ningún contenedor padre (overflow: hidden, modal, flex) recorte
+ * o impida la impresión (@media print).
+ */
+export function ThermalReceipt(props: ThermalReceiptProps) {
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || typeof document === 'undefined') {
+    return null
+  }
+
+  const is58mm = props.width === '58mm'
+
+  return createPortal(
+    <div
+      id="thermal-receipt"
+      className={is58mm ? 'receipt-58mm' : ''}
+    >
+      <ThermalReceiptContent {...props} isInlinePreview={false} />
+    </div>,
+    document.body,
   )
 }

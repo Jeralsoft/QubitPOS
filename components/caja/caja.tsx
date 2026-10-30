@@ -137,10 +137,17 @@ function Toast({ msg, kind }: { msg: string; kind: ToastKind }) {
 /* -------------------------------------------------------------------------- */
 
 export function Caja() {
-  const { isRegisterOpen, openRegister, closeRegister } = usePOSSession()
+  const { isRegisterOpen, session: posSession, openRegister, closeRegister } = usePOSSession()
   const [loading, setLoading] = React.useState(true)
   const [isOpen, setIsOpen] = React.useState(isRegisterOpen)
-  const [session, setSession] = React.useState<CajaSession>(currentSession)
+  const [session, setSession] = React.useState<CajaSession>(posSession ?? currentSession)
+
+  React.useEffect(() => {
+    if (posSession) {
+      setSession(posSession)
+    }
+    setIsOpen(isRegisterOpen)
+  }, [posSession, isRegisterOpen])
   const [movements, setMovements] = React.useState<CashMovement[]>(seedMovements)
   const [countedCash, setCountedCash] = React.useState<number | null>(null)
   const [history, setHistory] = React.useState(closingHistory)
@@ -242,7 +249,7 @@ export function Caja() {
       ...prev,
     ])
     setIsOpen(false)
-    closeRegister()
+    closeRegister(countedCash ?? realBalance)
     setCloseModal(false)
     showToast('Caja cerrada correctamente')
   }

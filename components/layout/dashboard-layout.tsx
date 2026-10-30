@@ -25,6 +25,7 @@ import { Contabilidad } from '@/components/contabilidad/contabilidad'
 import { Kiosco } from '@/components/kiosco/kiosco'
 import { Nomina } from '@/components/nomina/nomina'
 import { Configuracion } from '@/components/configuracion/configuracion'
+import { VPrecio } from '@/components/v-precio/v-precio'
 
 interface DashboardLayoutProps {
   children?: React.ReactNode
@@ -54,6 +55,7 @@ const moduleRegistry: Record<string, React.ComponentType> = {
   '/kiosco': Kiosco,
   '/nomina': Nomina,
   '/configuracion': Configuracion,
+  '/v-precio': VPrecio,
 }
 
 function resolveModule(activeHref: string): React.ComponentType {

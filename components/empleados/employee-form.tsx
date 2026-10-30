@@ -162,6 +162,46 @@ function buildInitial(e?: Employee | null): FormState {
 type Errors = Partial<Record<keyof FormState, string>>
 type Tab = 'identificacion' | 'contacto' | 'laboral' | 'seguridad_pos'
 
+const EMPLOYEE_STATUS_SEMAFORO: Record<
+  EmployeeStatus,
+  {
+    label: string
+    dotColor: string
+    selectedClass: string
+    unselectedHover: string
+    badgeClass: string
+  }
+> = {
+  activo: {
+    label: 'Activo',
+    dotColor: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]',
+    selectedClass: 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600 dark:hover:text-emerald-400',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  },
+  vacaciones: {
+    label: 'Vacaciones',
+    dotColor: 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)]',
+    selectedClass: 'border-sky-500 bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-sky-500/40 hover:bg-sky-500/5 hover:text-sky-600 dark:hover:text-sky-400',
+    badgeClass: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
+  },
+  suspendido: {
+    label: 'Suspendido',
+    dotColor: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)]',
+    selectedClass: 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-600 dark:hover:text-amber-400',
+    badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  },
+  inactivo: {
+    label: 'Inactivo',
+    dotColor: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]',
+    selectedClass: 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-rose-500/40 hover:bg-rose-500/5 hover:text-rose-600 dark:hover:text-rose-400',
+    badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  },
+}
+
 export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps) {
   const [form, setForm] = React.useState<FormState>(() => buildInitial(initial))
   const [errors, setErrors] = React.useState<Errors>({})
@@ -554,14 +594,38 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
         {/* TAB 3: LABORAL & CONTRATO */}
         {activeTab === 'laboral' && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
-            {/* Estado del Empleado - Horizontal Selector */}
-            <div>
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                Estado laboral del colaborador
-              </Label>
+            {/* Estado del Empleado - Semáforo Interactivo */}
+            <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                    Estado laboral del colaborador
+                  </Label>
+                  <span className="text-[11px] text-muted-foreground">
+                    Semáforo de disponibilidad laboral, turnos y nómina
+                  </span>
+                </div>
+                {/* Indicador en vivo de semáforo */}
+                <div
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all',
+                    EMPLOYEE_STATUS_SEMAFORO[form.status].badgeClass
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'size-2 rounded-full animate-pulse',
+                      EMPLOYEE_STATUS_SEMAFORO[form.status].dotColor
+                    )}
+                  />
+                  <span>{EMPLOYEE_STATUS_SEMAFORO[form.status].label}</span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full">
                 {(Object.keys(statusLabel) as EmployeeStatus[]).map((value) => {
                   const selected = form.status === value
+                  const sem = EMPLOYEE_STATUS_SEMAFORO[value]
                   return (
                     <button
                       key={value}
@@ -569,14 +633,21 @@ export function EmployeeForm({ initial, onCancel, onSubmit }: EmployeeFormProps)
                       onClick={() => set('status', value)}
                       aria-pressed={selected}
                       className={cn(
-                        'flex h-11 items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all select-none',
+                        'flex h-11 items-center justify-center gap-2 rounded-xl border text-xs transition-all select-none px-2.5',
                         selected
-                          ? 'border-foreground bg-foreground text-background shadow-xs'
-                          : 'border-border/80 bg-card text-foreground/80 hover:bg-muted hover:text-foreground'
+                          ? sem.selectedClass
+                          : cn('border-border/80 bg-card text-foreground/80', sem.unselectedHover)
                       )}
                     >
-                      {selected && <Check className="size-4 shrink-0 stroke-[2.5]" aria-hidden />}
+                      <span
+                        className={cn(
+                          'size-2.5 shrink-0 rounded-full transition-all',
+                          sem.dotColor,
+                          !selected && 'opacity-60 scale-90'
+                        )}
+                      />
                       <span>{statusLabel[value]}</span>
+                      {selected && <Check className="size-3.5 shrink-0 stroke-[2.5] ml-0.5" aria-hidden />}
                     </button>
                   )
                 })}

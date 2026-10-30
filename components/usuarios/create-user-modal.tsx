@@ -51,10 +51,42 @@ function passwordChecks(pw: string) {
   ]
 }
 
-const STATUS_OPTIONS: { id: UserStatus; label: string; desc: string; color: string }[] = [
-  { id: 'activo', label: 'Activo', desc: 'Acceso total permitido al sistema', color: 'bg-success' },
-  { id: 'inactivo', label: 'Inactivo', desc: 'Inicio de sesión temporalmente deshabilitado', color: 'bg-muted-foreground' },
-  { id: 'bloqueado', label: 'Bloqueado', desc: 'Bloqueado por intentos o directiva de seguridad', color: 'bg-danger' },
+const STATUS_OPTIONS: {
+  id: UserStatus
+  label: string
+  desc: string
+  dotColor: string
+  selectedClass: string
+  unselectedHover: string
+  badgeClass: string
+}[] = [
+  {
+    id: 'activo',
+    label: 'Activo',
+    desc: 'Acceso total permitido al sistema',
+    dotColor: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]',
+    selectedClass: 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30 shadow-xs',
+    unselectedHover: 'hover:border-emerald-500/40 hover:bg-emerald-500/5',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  },
+  {
+    id: 'inactivo',
+    label: 'Inactivo',
+    desc: 'Inicio de sesión temporalmente deshabilitado',
+    dotColor: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)]',
+    selectedClass: 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 shadow-xs',
+    unselectedHover: 'hover:border-amber-500/40 hover:bg-amber-500/5',
+    badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  },
+  {
+    id: 'bloqueado',
+    label: 'Bloqueado',
+    desc: 'Bloqueado por intentos o directiva de seguridad',
+    dotColor: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]',
+    selectedClass: 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500/30 shadow-xs',
+    unselectedHover: 'hover:border-rose-500/40 hover:bg-rose-500/5',
+    badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  },
 ]
 
 export function CreateUserModal({
@@ -373,13 +405,33 @@ export function CreateUserModal({
           </div>
         )}
 
-        {/* Tab 3: Estado */}
+        {/* Tab 3: Estado con Semáforo */}
         {activeTab === 'estado' && (
           <div className="flex flex-col gap-3">
-            <Label>Estado de la cuenta</Label>
-            <p className="text-xs text-muted-foreground">
-              Define si el usuario puede autenticarse de inmediato en la app web y caja POS.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                  Estado de la cuenta
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Semáforo de acceso para inicio de sesión en plataforma web y terminal POS.
+                </p>
+              </div>
+              {(() => {
+                const cur = STATUS_OPTIONS.find((s) => s.id === draft.status) ?? STATUS_OPTIONS[0]
+                return (
+                  <div
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all',
+                      cur.badgeClass
+                    )}
+                  >
+                    <span className={cn('size-2 rounded-full animate-pulse', cur.dotColor)} />
+                    <span>{cur.label}</span>
+                  </div>
+                )
+              })()}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full">
               {STATUS_OPTIONS.map((s) => {
                 const isSelected = draft.status === s.id
@@ -389,22 +441,26 @@ export function CreateUserModal({
                     type="button"
                     onClick={() => set('status', s.id)}
                     className={cn(
-                      'relative flex flex-col items-start gap-1 rounded-xl border p-3.5 text-left transition-all',
+                      'relative flex flex-col items-start gap-1.5 rounded-2xl border p-3.5 text-left transition-all select-none',
                       isSelected
-                        ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-sm'
-                        : 'border-border bg-card hover:border-muted-foreground/30 hover:bg-muted/30'
+                        ? s.selectedClass
+                        : cn('border-border/80 bg-card text-foreground/80', s.unselectedHover)
                     )}
                   >
-                    <div className="flex w-full items-center justify-between">
-                      <span className="flex items-center gap-2 text-sm font-semibold capitalize text-foreground">
-                        <span className={cn('size-2 rounded-full', s.color)} />
-                        {s.label}
-                      </span>
-                      {isSelected && <Check className="size-4 text-primary" />}
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            'size-2.5 rounded-full transition-all',
+                            s.dotColor,
+                            !isSelected && 'opacity-60 scale-90'
+                          )}
+                        />
+                        <span className="text-xs font-semibold text-foreground">{s.label}</span>
+                      </div>
+                      {isSelected && <Check className="size-3.5 stroke-[2.5]" aria-hidden />}
                     </div>
-                    <span className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      {s.desc}
-                    </span>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{s.desc}</p>
                   </button>
                 )
               })}

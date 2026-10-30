@@ -24,6 +24,46 @@ export interface NewTerminalDraft {
 
 const statuses: TerminalStatus[] = ['ONLINE', 'OFFLINE', 'MANTENIMIENTO', 'BLOQUEADO']
 
+const TERMINAL_STATUS_SEMAFORO: Record<
+  TerminalStatus,
+  {
+    label: string
+    dotColor: string
+    selectedClass: string
+    unselectedHover: string
+    badgeClass: string
+  }
+> = {
+  ONLINE: {
+    label: 'Online',
+    dotColor: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]',
+    selectedClass: 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600 dark:hover:text-emerald-400',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  },
+  OFFLINE: {
+    label: 'Offline',
+    dotColor: 'bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.7)]',
+    selectedClass: 'border-slate-500 bg-slate-500/10 text-slate-700 dark:text-slate-300 ring-1 ring-slate-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-slate-500/40 hover:bg-slate-500/5 hover:text-slate-600 dark:hover:text-slate-400',
+    badgeClass: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30',
+  },
+  MANTENIMIENTO: {
+    label: 'Mantenimiento',
+    dotColor: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)]',
+    selectedClass: 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-600 dark:hover:text-amber-400',
+    badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  },
+  BLOQUEADO: {
+    label: 'Bloqueado',
+    dotColor: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]',
+    selectedClass: 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500/30 font-semibold shadow-xs',
+    unselectedHover: 'hover:border-rose-500/40 hover:bg-rose-500/5 hover:text-rose-600 dark:hover:text-rose-400',
+    badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  },
+}
+
 export function CreateTerminalModal({
   open,
   onClose,
@@ -136,19 +176,50 @@ export function CreateTerminalModal({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="k-status">Estado</Label>
-            <Select
-              id="k-status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as TerminalStatus)}
-            >
-              {statuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
+          {/* Estado de Terminal con Semáforo */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                Estado del terminal
+              </Label>
+              <div
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all',
+                  TERMINAL_STATUS_SEMAFORO[status].badgeClass
+                )}
+              >
+                <span className={cn('size-2 rounded-full animate-pulse', TERMINAL_STATUS_SEMAFORO[status].dotColor)} />
+                <span>{TERMINAL_STATUS_SEMAFORO[status].label}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+              {statuses.map((s) => {
+                const selected = status === s
+                const sem = TERMINAL_STATUS_SEMAFORO[s]
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatus(s)}
+                    className={cn(
+                      'flex h-10 items-center justify-center gap-2 rounded-xl border text-xs transition-all select-none px-2',
+                      selected
+                        ? sem.selectedClass
+                        : cn('border-border/80 bg-card text-foreground/80', sem.unselectedHover)
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'size-2.5 rounded-full transition-all',
+                        sem.dotColor,
+                        !selected && 'opacity-60 scale-90'
+                      )}
+                    />
+                    <span>{sem.label}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <div>
             <Label htmlFor="k-printer">Impresora</Label>

@@ -41,6 +41,7 @@ import { RowActionsMenu } from '@/components/jeralpos/row-actions'
 import { Pagination } from '@/components/jeralpos/pagination'
 import { DataToast } from '@/components/jeralpos/data-toast'
 import { cn } from '@/lib/utils'
+import { nominaApi, type EmployeeRecord } from '@/lib/api'
 import {
   employees as seedEmployees,
   roles,
@@ -94,10 +95,60 @@ export function Empleados() {
   const [bulkDelete, setBulkDelete] = React.useState(false)
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
 
-  React.useEffect(() => {
-    const t = window.setTimeout(() => setLoading(false), 700)
-    return () => window.clearTimeout(t)
+  const loadEmployees = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await nominaApi.getEmployees()
+      if (res.data && res.data.length > 0) {
+        const liveMapped: Employee[] = res.data.map((rec) => ({
+          id: rec.code || `EMP-${rec.id}`,
+          firstName: rec.first_name,
+          lastName: rec.last_name,
+          fullName: `${rec.first_name} ${rec.last_name}`,
+          documentType: (rec.document_type as any) || 'CC',
+          document: rec.document_number,
+          birthDate: '1990-01-01',
+          phone: rec.phone || '',
+          mobile: rec.phone || '',
+          email: rec.email || '',
+          address: 'Carrera 7 # 71-21',
+          city: 'Bogotá',
+          role: rec.role,
+          branch: rec.branch || 'Sede Principal',
+          companyDepartment: rec.department,
+          hireDate: rec.start_date,
+          contractType: rec.contract_type || 'Término indefinido',
+          salary: Number(rec.base_salary),
+          transportAllowance: rec.has_transport_allowance ? 162000 : 0,
+          eps: rec.eps || 'Sura EPS',
+          pension: rec.pension_fund || 'Porvenir',
+          arl: rec.arl || 'Sura ARL',
+          bank: rec.bank_name || 'Bancolombia',
+          accountNumber: rec.account_number || '',
+          status: (rec.status || 'activo') as EmployeeStatus,
+          notes: '',
+          hasUser: true,
+          username: rec.email?.split('@')[0] || rec.first_name.toLowerCase(),
+          salesCount: 15,
+          salesTotal: 4500000,
+          cashOpenings: 12,
+          lastActivity: 'Hoy',
+          color: '#0284c7',
+        }))
+        const docs = new Set(liveMapped.map((e) => e.document))
+        const remaining = seedEmployees.filter((e) => !docs.has(e.document))
+        setItems([...liveMapped, ...remaining])
+      }
+    } catch {
+      // Fallback a seedEmployees
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  React.useEffect(() => {
+    loadEmployees()
+  }, [loadEmployees])
 
   const showToast = React.useCallback((msg: string, kind: ToastKind = 'success') => {
     setToast({ msg, kind })

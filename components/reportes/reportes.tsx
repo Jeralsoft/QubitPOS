@@ -31,6 +31,7 @@ import {
   reportLabelById,
   getReportView,
   formatValue,
+  formatCurrency,
   sucursales,
   usuarios,
   clientes,
@@ -41,6 +42,7 @@ import {
   type ReportStat,
   type ColumnFormat,
 } from './mock-data'
+import { reportsApi, type ReportsSummaryData } from '@/lib/api'
 import { ChartCard } from './charts'
 
 type ToastKind = 'success' | 'error'
@@ -263,6 +265,7 @@ export function Reportes() {
   const [generating, setGenerating] = React.useState(false)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [toast, setToast] = React.useState<{ msg: string; kind: ToastKind } | null>(null)
+  const [liveSummary, setLiveSummary] = React.useState<ReportsSummaryData | null>(null)
 
   // Filters
   const [dateFrom, setDateFrom] = React.useState('2026-09-01')
@@ -276,6 +279,21 @@ export function Reportes() {
 
   const toastTimer = React.useRef<number | undefined>(undefined)
   const genTimer = React.useRef<number | undefined>(undefined)
+
+  const loadSummary = React.useCallback(async () => {
+    try {
+      const res = await reportsApi.getSummary()
+      if (res.data) {
+        setLiveSummary(res.data)
+      }
+    } catch {
+      // Fallback a summaryCards
+    }
+  }, [])
+
+  React.useEffect(() => {
+    loadSummary()
+  }, [loadSummary])
 
   React.useEffect(
     () => () => {
@@ -321,9 +339,96 @@ export function Reportes() {
 
   const view = React.useMemo(() => getReportView(shownId), [shownId])
 
-  const summaryIndicators: Indicator[] = React.useMemo(
-    () =>
-      summaryCards.map((c) => ({
+  const summaryIndicators: Indicator[] = React.useMemo(() => {
+    return summaryCards.map((c) => {
+      if (!liveSummary) {
+        return {
+          id: c.id,
+          icon: c.icon,
+          label: c.label,
+          value: c.value,
+          description: c.description,
+          tone: c.tone,
+          trend: c.trend,
+          comparison: c.comparison,
+        }
+      }
+
+      // Reemplazo dinámico con datos vivos de la BD
+      if (c.id === 'ventas') {
+        return {
+          id: c.id,
+          icon: c.icon,
+          label: c.label,
+          value: formatCurrency(liveSummary.ventas.total),
+          description: `${liveSummary.ventas.count} facturas emitidas`,
+          tone: 'primary',
+          trend: 'up',
+          comparison: liveSummary.ventas.growth_label,
+        }
+      }
+      if (c.id === 'compras') {
+        return {
+          id: c.id,
+          icon: c.icon,
+          label: c.label,
+          value: formatCurrency(liveSummary.compras.total),
+          description: `${liveSummary.compras.count} compras registradas`,
+          tone: 'primary',
+          trend: 'up',
+          comparison: liveSummary.compras.growth_label,
+        }
+      }
+      if (c.id === 'utilidad') {
+        return {
+          id: c.id,
+          icon: c.icon,
+          label: c.label,
+          value: formatCurrency(liveSummary.utilidad.bruta),
+          description: `Margen ${liveSummary.utilidad.margen}%`,
+          tone: 'success',
+          trend: 'up',
+          comparison: liveSummary.utilidad.growth_label,
+        }
+      }
+      if (c.id === 'inventario') {
+        return {
+          id: c.id,
+          icon: c.icon,
+          label: c.label,
+          value: formatCurrency(liveSummary.inventario.valorizacion),
+          description: `${liveSummary.inventario.total_skus} referencias`,
+          tone: liveSummary.inventario.stock_bajo_count > 0 ? 'warning' : 'primary',
+          trend: 'flat',
+          comparison: `${liveSummary.inventario.stock_bajo_count} en stock bajo`,
+        }
+      }
+      if (c.id === 'cartera') {
+        return {
+          id: c.id,
+          icon: c.icon,
+          label: c.label,
+          value: formatCurrency(liveSummary.cartera.total_pendiente),
+          description: 'Saldo por recaudar CxC',
+          tone: liveSummary.cartera.vencida > 0 ? 'danger' : 'success',
+          trend: 'down',
+          comparison: `$${(liveSummary.cartera.vencida / 1_000_000).toFixed(1)}M vencida`,
+        }
+      }
+      if (c.id === 'cxp') {
+        return {
+          id: c.id,
+          icon: c.icon,
+          label: c.label,
+          value: formatCurrency(liveSummary.cxp.total_pendiente),
+          description: 'Obligaciones proveedores',
+          tone: 'warning',
+          trend: 'flat',
+          comparison: `Vence esta semana: ${formatCurrency(liveSummary.cxp.vence_esta_semana)}`,
+        }
+      }
+
+      return {
         id: c.id,
         icon: c.icon,
         label: c.label,
@@ -332,9 +437,9 @@ export function Reportes() {
         tone: c.tone,
         trend: c.trend,
         comparison: c.comparison,
-      })),
-    [],
-  )
+      }
+    })
+  }, [liveSummary])
 
   return (
     <div className="flex flex-col gap-6">

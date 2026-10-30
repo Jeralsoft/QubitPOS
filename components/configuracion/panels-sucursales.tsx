@@ -14,11 +14,31 @@ import {
 } from '@/components/jeralpos/table'
 import { SectionHeader, Toggle } from './settings-ui'
 import { branches as seedBranches, registers as seedRegisters, type Branch, type Register } from './mock-data'
+import { settingsApi } from '@/lib/api'
 
 type Toast = (msg: string, kind?: 'success' | 'error') => void
 
 export function SucursalesPanel({ onToast }: { onToast: Toast }) {
   const [items, setItems] = React.useState<Branch[]>(seedBranches)
+
+  React.useEffect(() => {
+    settingsApi
+      .getBranches()
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          const liveBranches: Branch[] = res.data.map((b) => ({
+            id: String(b.id),
+            name: b.name,
+            code: b.code,
+            address: b.address,
+            phone: b.phone,
+            active: b.is_active,
+          }))
+          setItems(liveBranches)
+        }
+      })
+      .catch(() => {})
+  }, [])
   const toggle = (id: string) =>
     setItems((prev) =>
       prev.map((b) => {
@@ -95,6 +115,24 @@ export function SucursalesPanel({ onToast }: { onToast: Toast }) {
 
 export function CajasPanel({ onToast }: { onToast: Toast }) {
   const [items, setItems] = React.useState<Register[]>(seedRegisters)
+
+  React.useEffect(() => {
+    settingsApi
+      .getCashRegisters()
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          const liveRegisters: Register[] = res.data.map((r) => ({
+            id: String(r.id),
+            name: r.name,
+            branch: r.branch?.name || 'Sede Principal',
+            terminal: r.terminal_code,
+            active: r.is_active,
+          }))
+          setItems(liveRegisters)
+        }
+      })
+      .catch(() => {})
+  }, [])
   const toggle = (id: string) =>
     setItems((prev) =>
       prev.map((c) => {
