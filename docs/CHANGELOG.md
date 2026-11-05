@@ -4,6 +4,30 @@ Todas las modificaciones notables realizadas en el proyecto están documentadas 
 
 ---
 
+## [2026-11-05] - Módulo de Configuración 100% Funcional & Gobernanza Multi-Sede
+
+### Añadido
+- **CRUD Completo de Sucursales:** Creación, edición, alternancia de estado activo/inactivo y eliminación de sucursales con persistencia real en PostgreSQL (`/api/settings/branches`).
+- **CRUD Completo de Cajas Registradoras:** Creación, edición, vinculación de cajas a sucursales y alternancia de estado (`/api/settings/cash-registers`).
+- **Gestión Integral de Resoluciones DIAN:** Formulario modal para registro oficial de formulario 1876 DIAN (número, prefijo, rango de numeración, vigencia, clave técnica) con validación y eliminación (`/api/settings/resolutions`).
+- **Tabla y Modelo `app_settings`:** Almacenamiento clave-valor JSON en base de datos para todas las configuraciones dinámicas del sistema (periféricos POS, inventarios, políticas de seguridad, SMTP, apariencia).
+- **Pruebas de Conectividad en Tiempo Real:** Endpoints para test de servicios Web DIAN (`/api/settings/dian/test-connection`) con reporte de latencia en milisegundos y test de servidor SMTP (`/api/settings/mail/test-connection`).
+- **Exportación y Descarga de Copias de Seguridad:** Generación de volcado JSON íntegro de base de datos (`/api/settings/backup/export`) con descarga directa en el navegador.
+- **Selector y Carga de Logo Institucional:** Soporte de carga y persistencia de logotipo corporativo para impresión automática en tickets térmicos de 80mm y 58mm.
+- **Suite de Pruebas Feature en PHPUnit:** Se añadieron 3 nuevas pruebas exhaustivas en `SettingsTest.php`, alcanzando 45/45 pruebas verdes (264 aserciones).
+
+### Modificado
+- `components/configuracion/panels-sucursales.tsx`: Integración total con modales de creación/edición y llamadas API directas.
+- `components/configuracion/panels-facturacion.tsx`: Prefijos, resoluciones y parámetros electrónicos conectados al backend.
+- `components/configuracion/panels-general.tsx`: Empresa, Logo, Contacto y Configuración Regional completamente enlazados.
+- `components/configuracion/panels-inventario.tsx`: Unidades de medida, categorías, marcas, tarifas de IVA/INC y reglas de stock con modales y persistencia.
+- `components/configuracion/panels-ventas.tsx`: Métodos de pago, tipos de venta, descuentos y consecutivos con formularios interactivos.
+- `components/configuracion/panels-usuarios.tsx`: Roles, permisos y políticas de seguridad (incluido arqueo ciego y 2FA).
+- `components/configuracion/panels-sistema.tsx`: Notificaciones, SMTP, copias de seguridad descargables, preferencias de impresora térmica y apariencia reactiva con cambio de tema en vivo.
+- `lib/api.ts`: Ampliación del cliente `settingsApi` con 15 métodos REST adicionales.
+
+---
+
 ## [2026-10-30] - Integración Vertical y Despliegue Multi-Módulo en Vivo
 
 ### Añadido

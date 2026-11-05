@@ -184,7 +184,7 @@ export function Configuracion() {
           </span>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">Configuración</h1>
-            <p className="text-sm text-muted-foreground">Administra los parámetros generales del sistema JERALPOS.</p>
+            <p className="text-sm text-muted-foreground">Administra los parámetros generales del sistema QubitPOS.</p>
           </div>
         </div>
       </div>

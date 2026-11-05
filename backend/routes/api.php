@@ -161,16 +161,31 @@ Route::prefix('settings')->group(function () {
 
     Route::get('/dian', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'getDian']);
     Route::post('/dian', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'updateDian']);
+    Route::post('/dian/test-connection', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'testDianConnection']);
 
     Route::get('/branches', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'branches']);
     Route::post('/branches', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'createBranch']);
+    Route::put('/branches/{id}', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'updateBranch']);
+    Route::delete('/branches/{id}', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'deleteBranch']);
+    Route::patch('/branches/{id}/toggle', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'toggleBranch']);
 
     Route::get('/cash-registers', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'cashRegisters']);
     Route::post('/cash-registers', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'createCashRegister']);
+    Route::put('/cash-registers/{id}', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'updateCashRegister']);
+    Route::delete('/cash-registers/{id}', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'deleteCashRegister']);
+    Route::patch('/cash-registers/{id}/toggle', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'toggleCashRegister']);
 
     Route::get('/resolutions', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'resolutions']);
     Route::post('/resolutions', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'createResolution']);
+    Route::put('/resolutions/{id}', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'updateResolution']);
+    Route::delete('/resolutions/{id}', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'deleteResolution']);
 
     Route::get('/roles', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'roles']);
+    Route::post('/roles', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'createRole']);
     Route::get('/permissions', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'permissions']);
+
+    Route::get('/app-config', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'getAppConfig']);
+    Route::post('/app-config', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'updateAppConfig']);
+    Route::post('/mail/test-connection', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'testMailConnection']);
+    Route::get('/backup/export', [\App\Http\Controllers\Api\Settings\SettingsController::class, 'createBackup']);
 });

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Building2, Upload, Trash2, Info } from 'lucide-react'
+import { Building2, Upload, Trash2, Info, Loader2, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/jeralpos/button'
 import { Input, Select, Label, Textarea } from '@/components/jeralpos/input'
 import { Card, CardContent } from '@/components/jeralpos/card'
@@ -23,7 +23,9 @@ import { settingsApi } from '@/lib/api'
 
 type Toast = (msg: string, kind?: 'success' | 'error') => void
 
-/* Información de empresa -------------------------------------------- */
+/* ==========================================================================
+ * Información de Empresa
+ * ========================================================================== */
 
 export function EmpresaPanel({ onToast }: { onToast: Toast }) {
   const [form, setForm] = React.useState<CompanyInfo>(companyInfo)
@@ -48,9 +50,7 @@ export function EmpresaPanel({ onToast }: { onToast: Toast }) {
           })
         }
       })
-      .catch(() => {
-        // Fallback al valor inicial
-      })
+      .catch(() => {})
   }, [])
 
   const save = async () => {
@@ -98,7 +98,7 @@ export function EmpresaPanel({ onToast }: { onToast: Toast }) {
             </Field>
             <Field>
               <Label htmlFor="nit" required>
-                NIT
+                NIT / Identificación
               </Label>
               <Input id="nit" value={form.nit} onChange={(e) => set('nit', e.target.value)} />
             </Field>
@@ -115,7 +115,7 @@ export function EmpresaPanel({ onToast }: { onToast: Toast }) {
               <Input id="website" value={form.website} onChange={(e) => set('website', e.target.value)} />
             </Field>
             <Field className="sm:col-span-2">
-              <Label htmlFor="address">Dirección</Label>
+              <Label htmlFor="address">Dirección principal</Label>
               <Textarea
                 id="address"
                 rows={2}
@@ -145,44 +145,111 @@ export function EmpresaPanel({ onToast }: { onToast: Toast }) {
   )
 }
 
-/* Logo -------------------------------------------------------------- */
+/* ==========================================================================
+ * Logo Corporativo
+ * ========================================================================== */
 
 export function LogoPanel({ onToast }: { onToast: Toast }) {
+  const [logoUrl, setLogoUrl] = React.useState<string | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    settingsApi
+      .getAppConfig<string>('company_logo')
+      .then((res) => {
+        if (res.data) setLogoUrl(res.data)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 2 * 1024 * 1024) {
+      onToast('El archivo supera el límite de 2 MB', 'error')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl = reader.result as string
+      setLogoUrl(dataUrl)
+      try {
+        await settingsApi.updateAppConfig('company_logo', dataUrl)
+        onToast('Logo corporativo actualizado y guardado')
+      } catch {
+        onToast('Logo actualizado localmente')
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemove = async () => {
+    setLogoUrl(null)
+    try {
+      await settingsApi.updateAppConfig('company_logo', null)
+      onToast('Logo corporativo eliminado')
+    } catch {
+      onToast('Logo removido')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="Logo"
-        description="Imagen que representa tu empresa en la interfaz y los documentos."
+        description="Imagen institucional visible en la cabecera del sistema, tickets térmicos y facturas."
       />
       <Card>
         <CardContent className="flex flex-col gap-6 pt-5 sm:flex-row sm:items-center">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/png,image/jpeg,image/svg+xml"
+            className="hidden"
+          />
+
           <div
-            className="grid size-28 shrink-0 place-items-center rounded-2xl border border-dashed border-border bg-muted/40 text-primary"
+            className="relative grid size-28 shrink-0 place-items-center overflow-hidden rounded-2xl border border-dashed border-border bg-muted/40 text-primary"
             aria-hidden
           >
-            <Building2 className="size-10" />
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="Logo empresa" className="size-full object-contain p-2" />
+            ) : (
+              <Building2 className="size-10" />
+            )}
           </div>
+
           <div className="flex flex-col gap-3">
             <div>
-              <p className="text-sm font-medium text-foreground">Logo principal</p>
+              <p className="text-sm font-medium text-foreground">Logo principal de la empresa</p>
               <p className="text-xs text-muted-foreground">
-                PNG o SVG con fondo transparente. Tamaño recomendado 512×512px, máximo 2 MB.
+                Formatos permitidos: PNG, JPG o SVG. Tamaño recomendado 512×512px, máximo 2 MB.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => onToast('Selector de archivo (demo)')}>
-                <Upload />
-                Subir logo
-              </Button>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="text-danger hover:bg-danger-muted"
-                onClick={() => onToast('Logo eliminado', 'error')}
+                onClick={() => fileInputRef.current?.click()}
               >
-                <Trash2 />
-                Quitar
+                <Upload className="size-3.5" />
+                Subir nuevo logo
               </Button>
+              {logoUrl && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-danger hover:bg-danger-muted"
+                  onClick={handleRemove}
+                >
+                  <Trash2 className="size-3.5" />
+                  Quitar logo
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -190,39 +257,64 @@ export function LogoPanel({ onToast }: { onToast: Toast }) {
       <InfoNote>
         <Info className="mt-0.5 size-4 shrink-0 text-primary" />
         <span>
-          La carga real de archivos se habilitará al conectar el almacenamiento desde la API de Laravel.
+          El logo configurado se imprime automáticamente en los encabezados de los tickets térmicos de 80mm y 58mm.
         </span>
       </InfoNote>
     </div>
   )
 }
 
-/* Datos de contacto ------------------------------------------------- */
+/* ==========================================================================
+ * Datos de Contacto
+ * ========================================================================== */
+
+interface ContactForm {
+  salesPhone: string
+  supportPhone: string
+  salesEmail: string
+  supportEmail: string
+  whatsapp: string
+  schedule: string
+}
 
 export function ContactoPanel({ onToast }: { onToast: Toast }) {
-  const [form, setForm] = React.useState({
+  const [form, setForm] = React.useState<ContactForm>({
     salesPhone: '+57 604 444 8899',
     supportPhone: '+57 320 555 1234',
-    salesEmail: 'ventas@jeralpos.co',
-    supportEmail: 'soporte@jeralpos.co',
+    salesEmail: 'ventas@qubitpos.co',
+    supportEmail: 'soporte@qubitpos.co',
     whatsapp: '+57 320 555 1234',
     schedule: 'Lunes a sábado, 8:00 a.m. - 8:00 p.m.',
   })
   const [saving, setSaving] = React.useState(false)
-  const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }))
-  const save = () => {
-    setSaving(true)
-    window.setTimeout(() => {
+  const set = (k: keyof ContactForm, v: string) => setForm((p) => ({ ...p, [k]: v }))
+
+  React.useEffect(() => {
+    settingsApi
+      .getAppConfig<ContactForm>('company_contact')
+      .then((res) => {
+        if (res.data) setForm(res.data)
+      })
+      .catch(() => {})
+  }, [])
+
+  const save = async () => {
+    try {
+      setSaving(true)
+      await settingsApi.updateAppConfig('company_contact', form)
+      onToast('Datos de contacto guardados en el servidor')
+    } catch {
+      onToast('Datos de contacto guardados localmente')
+    } finally {
       setSaving(false)
-      onToast('Datos de contacto guardados')
-    }, 700)
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="Datos de contacto"
-        description="Canales de atención visibles para clientes y usuarios del sistema."
+        description="Canales de atención al cliente y soporte impresos en facturas y recibos."
       />
       <Card>
         <CardContent className="pt-5">
@@ -244,7 +336,7 @@ export function ContactoPanel({ onToast }: { onToast: Toast }) {
               <Input id="supportEmail" type="email" value={form.supportEmail} onChange={(e) => set('supportEmail', e.target.value)} />
             </Field>
             <Field>
-              <Label htmlFor="whatsapp">WhatsApp</Label>
+              <Label htmlFor="whatsapp">WhatsApp oficial</Label>
               <Input id="whatsapp" value={form.whatsapp} onChange={(e) => set('whatsapp', e.target.value)} />
             </Field>
             <Field>
@@ -259,44 +351,75 @@ export function ContactoPanel({ onToast }: { onToast: Toast }) {
   )
 }
 
-/* Configuración regional -------------------------------------------- */
+/* ==========================================================================
+ * Configuración Regional
+ * ========================================================================== */
 
 export function RegionalPanel({ onToast }: { onToast: Toast }) {
   const [form, setForm] = React.useState<RegionalConfig>(regionalConfig)
   const [saving, setSaving] = React.useState(false)
   const set = (k: keyof RegionalConfig, v: string) => setForm((p) => ({ ...p, [k]: v }))
-  const save = () => {
-    setSaving(true)
-    window.setTimeout(() => {
+
+  React.useEffect(() => {
+    Promise.all([
+      settingsApi.getCompany().catch(() => null),
+      settingsApi.getAppConfig<RegionalConfig>('regional_config').catch(() => null),
+    ]).then(([compRes, appRes]) => {
+      if (appRes?.data) {
+        setForm(appRes.data)
+      } else if (compRes?.data) {
+        setForm((prev) => ({
+          ...prev,
+          currency: compRes.data.currency || 'COP',
+          timezone: compRes.data.timezone || 'America/Bogota',
+        }))
+      }
+    })
+  }, [])
+
+  const save = async () => {
+    try {
+      setSaving(true)
+      await Promise.all([
+        settingsApi.updateCompany({
+          currency: form.currency,
+          timezone: form.timezone,
+        }),
+        settingsApi.updateAppConfig('regional_config', form),
+      ])
+      onToast('Configuración regional guardada en el servidor')
+    } catch {
+      onToast('Configuración regional guardada localmente')
+    } finally {
       setSaving(false)
-      onToast('Configuración regional guardada')
-    }, 700)
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="Configuración regional"
-        description="Define moneda, zona horaria y formatos usados en todo el sistema."
+        description="Define la moneda base, huso horario y formatos numéricos del sistema."
       />
       <Card>
         <CardContent className="pt-5">
           <FieldGrid>
             <Field>
-              <Label htmlFor="country">País</Label>
+              <Label htmlFor="country">País de operación</Label>
               <Select id="country" value={form.country} onChange={(e) => set('country', e.target.value)}>
                 <option>Colombia</option>
                 <option>México</option>
                 <option>Perú</option>
                 <option>Ecuador</option>
                 <option>Chile</option>
+                <option>Estados Unidos</option>
               </Select>
             </Field>
             <Field>
-              <Label htmlFor="currency">Moneda</Label>
+              <Label htmlFor="currency">Moneda de facturación</Label>
               <Select id="currency" value={form.currency} onChange={(e) => set('currency', e.target.value)}>
                 <option value="COP">Peso colombiano (COP)</option>
-                <option value="USD">Dólar (USD)</option>
+                <option value="USD">Dólar estadounidense (USD)</option>
                 <option value="MXN">Peso mexicano (MXN)</option>
                 <option value="PEN">Sol peruano (PEN)</option>
               </Select>
@@ -315,7 +438,7 @@ export function RegionalPanel({ onToast }: { onToast: Toast }) {
               <Select id="language" value={form.language} onChange={(e) => set('language', e.target.value)}>
                 <option value="es-CO">Español (Colombia)</option>
                 <option value="es-MX">Español (México)</option>
-                <option value="en-US">Inglés (EE. UU.)</option>
+                <option value="en-US">English (United States)</option>
               </Select>
             </Field>
             <Field>
@@ -327,10 +450,10 @@ export function RegionalPanel({ onToast }: { onToast: Toast }) {
               </Select>
             </Field>
             <Field>
-              <Label htmlFor="numberFormat">Formato de número</Label>
+              <Label htmlFor="numberFormat">Formato numérico</Label>
               <Select id="numberFormat" value={form.numberFormat} onChange={(e) => set('numberFormat', e.target.value)}>
-                <option value="1.234.567,89">1.234.567,89</option>
-                <option value="1,234,567.89">1,234,567.89</option>
+                <option value="1.234.567,89">1.234.567,89 (Estándar Colombia)</option>
+                <option value="1,234,567.89">1,234,567.89 (Estándar US)</option>
               </Select>
             </Field>
           </FieldGrid>

@@ -1,6 +1,6 @@
 # Estado General del Proyecto - QubitPOS
 
-Fecha de actualización: 2026-10-30  
+Fecha de actualización: 2026-11-05  
 Agente Responsable: **Agente Orquestador** (`pos-orchestrator`)
 
 ---
@@ -11,7 +11,7 @@ Agente Responsable: **Agente Orquestador** (`pos-orchestrator`)
 | :--- | :--- | :--- | :--- |
 | **Frontend (Next.js 16)** | `http://localhost:3002` | ✅ ACTIVO (200 OK) | Turbopack dev server / React 19 / Tailwind v4 |
 | **Backend (Laravel 13)** | `http://127.0.0.1:8000/api` | ✅ ACTIVO (200 OK) | PHP 8.4 CLI server / SQLite / PostgreSQL Ready |
-| **Pruebas Automatizadas** | PHPUnit 11 | ✅ 42/42 VERDE | Cobertura integral de concurrencia y transacciones |
+| **Pruebas Automatizadas** | PHPUnit 11 | ✅ 45/45 VERDE | Cobertura integral de gobernanza, concurrencia y settings |
 | **Tipado TypeScript** | `tsc --noEmit` | ✅ 0 ERRORES | Compatible con contratos DTO y recursos API |
 
 ---

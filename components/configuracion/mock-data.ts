@@ -506,6 +506,8 @@ export interface Backup {
   status: 'Completado' | 'En progreso' | 'Fallido'
 }
 
+export type BackupEntry = Backup
+
 export const backups: Backup[] = [
   { id: 'bk1', date: '22/09/2026 03:00', size: '248 MB', type: 'Automático', status: 'Completado' },
   { id: 'bk2', date: '21/09/2026 03:00', size: '246 MB', type: 'Automático', status: 'Completado' },

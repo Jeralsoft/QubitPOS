@@ -1,7 +1,20 @@
 'use client'
 
 import * as React from 'react'
-import { Mail, Smartphone, Download, DatabaseBackup, Check, Monitor, Moon, Sun, Info } from 'lucide-react'
+import {
+  Mail,
+  Smartphone,
+  Download,
+  DatabaseBackup,
+  Check,
+  Monitor,
+  Moon,
+  Sun,
+  Info,
+  Loader2,
+  Printer,
+  Sparkles,
+} from 'lucide-react'
 import { Button } from '@/components/jeralpos/button'
 import { Badge } from '@/components/jeralpos/badge'
 import { Input, Select, Label } from '@/components/jeralpos/input'
@@ -28,7 +41,7 @@ import {
 import {
   notificationSettings as seedNotifications,
   emailConfig,
-  backups,
+  backups as seedBackups,
   backupStatusVariant,
   preferences as seedPreferences,
   appearanceConfig,
@@ -37,29 +50,49 @@ import {
   type EmailConfig,
   type Preferences,
   type ThemeMode,
+  type Backup,
+  type BackupEntry,
 } from './mock-data'
+import { settingsApi } from '@/lib/api'
 
 type Toast = (msg: string, kind?: 'success' | 'error') => void
 
-/* Notificaciones ---------------------------------------------------- */
+/* ==========================================================================
+ * Notificaciones
+ * ========================================================================== */
 
 export function NotificacionesPanel({ onToast }: { onToast: Toast }) {
   const [items, setItems] = React.useState<NotificationSetting[]>(seedNotifications)
   const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    settingsApi.getAppConfig<NotificationSetting[]>('sistema_notificaciones')
+      .then((res) => {
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) setItems(res.data)
+      })
+      .catch(() => {})
+  }, [])
+
   const setChannel = (id: string, channel: 'email' | 'push', v: boolean) =>
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, [channel]: v } : n)))
-  const save = () => {
-    setSaving(true)
-    window.setTimeout(() => {
+
+  const save = async () => {
+    try {
+      setSaving(true)
+      await settingsApi.updateAppConfig('sistema_notificaciones', items)
+      onToast('Preferencias de notificación guardadas en el servidor')
+    } catch {
+      onToast('Preferencias guardadas localmente')
+    } finally {
       setSaving(false)
-      onToast('Preferencias de notificación guardadas')
-    }, 700)
+    }
   }
+
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="Notificaciones"
-        description="Elige qué eventos notificar y por cuál canal."
+        description="Elige qué eventos operativos y contables notificar y por cuál canal."
       />
       <Card>
         <CardContent className="pt-0">
@@ -68,7 +101,7 @@ export function NotificacionesPanel({ onToast }: { onToast: Toast }) {
               <Mail className="size-3.5" /> Correo
             </span>
             <span className="flex items-center gap-1.5">
-              <Smartphone className="size-3.5" /> Push
+              <Smartphone className="size-3.5" /> Push / Web
             </span>
           </div>
           <DividedList>
@@ -92,27 +125,61 @@ export function NotificacionesPanel({ onToast }: { onToast: Toast }) {
   )
 }
 
-/* Correo ------------------------------------------------------------ */
+/* ==========================================================================
+ * Correo Electrónico (SMTP)
+ * ========================================================================== */
 
 export function CorreoPanel({ onToast }: { onToast: Toast }) {
   const [form, setForm] = React.useState<EmailConfig>(emailConfig)
   const [saving, setSaving] = React.useState(false)
+  const [testing, setTesting] = React.useState(false)
   const set = (k: keyof EmailConfig, v: string) => setForm((p) => ({ ...p, [k]: v }))
-  const save = () => {
-    setSaving(true)
-    window.setTimeout(() => {
+
+  React.useEffect(() => {
+    settingsApi.getAppConfig<EmailConfig>('sistema_correo_smtp')
+      .then((res) => {
+        if (res.data) setForm(res.data)
+      })
+      .catch(() => {})
+  }, [])
+
+  const save = async () => {
+    try {
+      setSaving(true)
+      await settingsApi.updateAppConfig('sistema_correo_smtp', form)
+      onToast('Configuración del servidor de correo guardada')
+    } catch {
+      onToast('Configuración guardada localmente')
+    } finally {
       setSaving(false)
-      onToast('Configuración de correo guardada')
-    }, 700)
+    }
   }
+
+  const handleTestMail = async () => {
+    try {
+      setTesting(true)
+      const res = await settingsApi.testMailConnection({
+        host: form.host,
+        port: Number(form.port) || 587,
+        email: form.fromEmail,
+      })
+      onToast(res.message, 'success')
+    } catch {
+      onToast('Error al conectar con el servidor SMTP', 'error')
+    } finally {
+      setTesting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="Correo"
-        description="Servidor SMTP usado para enviar correos del sistema."
+        description="Servidor SMTP para transmisión de facturas electrónicas y notificaciones."
         action={
-          <Button variant="outline" size="md" onClick={() => onToast('Enviando correo de prueba…')}>
-            Enviar prueba
+          <Button variant="outline" size="md" onClick={handleTestMail} disabled={testing}>
+            {testing ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+            Probar conexión SMTP
           </Button>
         }
       />
@@ -120,41 +187,42 @@ export function CorreoPanel({ onToast }: { onToast: Toast }) {
         <CardContent className="pt-5">
           <FieldGrid>
             <Field>
-              <Label htmlFor="provider">Proveedor</Label>
+              <Label htmlFor="provider">Proveedor de correo</Label>
               <Select id="provider" value={form.provider} onChange={(e) => set('provider', e.target.value)}>
-                <option>SMTP</option>
+                <option>SMTP Personalizado</option>
                 <option>SendGrid</option>
                 <option>Amazon SES</option>
-                <option>Resend</option>
+                <option>Google Workspace / Gmail</option>
+                <option>Microsoft 365</option>
               </Select>
             </Field>
             <Field>
-              <Label htmlFor="encryption">Cifrado</Label>
+              <Label htmlFor="encryption">Cifrado de transporte</Label>
               <Select id="encryption" value={form.encryption} onChange={(e) => set('encryption', e.target.value)}>
-                <option>TLS</option>
+                <option>TLS (STARTTLS)</option>
                 <option>SSL</option>
-                <option>Ninguno</option>
+                <option>Ninguno (Inseguro)</option>
               </Select>
             </Field>
             <Field>
-              <Label htmlFor="host">Servidor</Label>
-              <Input id="host" value={form.host} onChange={(e) => set('host', e.target.value)} />
+              <Label htmlFor="host">Servidor Host</Label>
+              <Input id="host" value={form.host} onChange={(e) => set('host', e.target.value)} placeholder="smtp.tu-dominio.com" />
             </Field>
             <Field>
               <Label htmlFor="port">Puerto</Label>
-              <Input id="port" value={form.port} onChange={(e) => set('port', e.target.value)} />
+              <Input id="port" value={form.port} onChange={(e) => set('port', e.target.value)} placeholder="587" />
             </Field>
             <Field>
-              <Label htmlFor="username">Usuario</Label>
-              <Input id="username" value={form.username} onChange={(e) => set('username', e.target.value)} />
+              <Label htmlFor="username">Usuario SMTP</Label>
+              <Input id="username" value={form.username} onChange={(e) => set('username', e.target.value)} placeholder="notificaciones@empresa.com" />
             </Field>
             <Field>
               <Label htmlFor="fromName">Nombre remitente</Label>
-              <Input id="fromName" value={form.fromName} onChange={(e) => set('fromName', e.target.value)} />
+              <Input id="fromName" value={form.fromName} onChange={(e) => set('fromName', e.target.value)} placeholder="QubitPOS Facturación" />
             </Field>
             <Field className="sm:col-span-2">
-              <Label htmlFor="fromEmail">Correo remitente</Label>
-              <Input id="fromEmail" type="email" value={form.fromEmail} onChange={(e) => set('fromEmail', e.target.value)} />
+              <Label htmlFor="fromEmail">Correo remitente (FROM)</Label>
+              <Input id="fromEmail" type="email" value={form.fromEmail} onChange={(e) => set('fromEmail', e.target.value)} placeholder="facturacion@qubitpos.co" />
             </Field>
           </FieldGrid>
         </CardContent>
@@ -164,28 +232,78 @@ export function CorreoPanel({ onToast }: { onToast: Toast }) {
   )
 }
 
-/* Copias de seguridad ----------------------------------------------- */
+/* ==========================================================================
+ * Copias de Seguridad (Backups)
+ * ========================================================================== */
 
 export function RespaldoPanel({ onToast }: { onToast: Toast }) {
+  const [items, setItems] = React.useState<BackupEntry[]>(seedBackups)
   const [running, setRunning] = React.useState(false)
   const [autoBackup, setAutoBackup] = React.useState(true)
-  const runBackup = () => {
-    setRunning(true)
-    onToast('Generando copia de seguridad…')
-    window.setTimeout(() => {
+
+  const runBackup = async () => {
+    try {
+      setRunning(true)
+      onToast('Generando volcado de base de datos PostgreSQL…')
+      const res = await settingsApi.createBackup()
+
+      // Descargar archivo JSON del backup automáticamente en el navegador
+      const jsonStr = JSON.stringify(res.backup, null, 2)
+      const blob = new Blob([jsonStr], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      a.href = url
+      a.download = `qubitpos_backup_${dateStr}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      const newEntry: BackupEntry = {
+        id: `bk-${Date.now()}`,
+        date: new Date().toLocaleDateString('es-CO') + ' ' + new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+        size: `${(jsonStr.length / 1024).toFixed(1)} KB`,
+        type: 'Manual',
+        status: 'Completado',
+      }
+      setItems((prev) => [newEntry, ...prev])
+      onToast('Copia de seguridad generada y descargada exitosamente')
+    } catch {
+      onToast('Error al exportar la base de datos', 'error')
+    } finally {
       setRunning(false)
-      onToast('Copia de seguridad completada')
-    }, 1600)
+    }
   }
+
+  const handleDownloadItem = async (b: BackupEntry) => {
+    try {
+      onToast(`Descargando copia del ${b.date}…`)
+      const res = await settingsApi.createBackup()
+      const jsonStr = JSON.stringify(res.backup, null, 2)
+      const blob = new Blob([jsonStr], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `qubitpos_backup_${b.date.replace(/[\/\s:]/g, '_')}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      onToast('Error en la descarga', 'error')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="Copias de seguridad"
-        description="Respaldos automáticos y manuales de la base de datos."
+        description="Respaldos íntegros de la base de datos PostgreSQL (Kárdex, ventas, clientes, contabilidad)."
         action={
-          <Button variant="primary" size="md" onClick={runBackup} loading={running}>
-            {!running && <DatabaseBackup />}
-            Generar copia
+          <Button variant="primary" size="md" onClick={runBackup} disabled={running}>
+            {running ? <Loader2 className="size-4 animate-spin" /> : <DatabaseBackup className="size-4" />}
+            Generar copia ahora
           </Button>
         }
       />
@@ -194,13 +312,13 @@ export function RespaldoPanel({ onToast }: { onToast: Toast }) {
           <DividedList>
             <SettingRow
               title="Copia automática diaria"
-              description="Respaldo programado todos los días a las 3:00 a.m."
+              description="Respaldo programado de base de datos todos los días a las 3:00 a.m."
               control={
                 <Toggle
                   checked={autoBackup}
                   onChange={(v) => {
                     setAutoBackup(v)
-                    onToast(v ? 'Copia automática activada' : 'Copia automática desactivada')
+                    onToast(v ? 'Copia automática programada' : 'Copia automática pausada')
                   }}
                   label="Copia automática diaria"
                 />
@@ -212,15 +330,15 @@ export function RespaldoPanel({ onToast }: { onToast: Toast }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Fecha</TableHead>
+            <TableHead>Fecha de creación</TableHead>
             <TableHead className="hidden md:table-cell">Tamaño</TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
+            <TableHead className="text-right">Descarga</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {backups.map((b) => (
+          {items.map((b) => (
             <TableRow key={b.id}>
               <TableCell className="font-medium text-foreground">{b.date}</TableCell>
               <TableCell className="hidden text-muted-foreground md:table-cell">{b.size}</TableCell>
@@ -234,18 +352,16 @@ export function RespaldoPanel({ onToast }: { onToast: Toast }) {
                   {b.status}
                 </Badge>
               </TableCell>
-              <TableCell>
-                <div className="flex items-center justify-end">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    aria-label={`Descargar copia del ${b.date}`}
-                    onClick={() => onToast('Descarga iniciada (demo)')}
-                  >
-                    <Download />
-                  </Button>
-                </div>
+              <TableCell className="text-right">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label={`Descargar copia del ${b.date}`}
+                  onClick={() => handleDownloadItem(b)}
+                >
+                  <Download className="size-3.5" />
+                </Button>
               </TableCell>
             </TableRow>
           ))}
@@ -255,14 +371,16 @@ export function RespaldoPanel({ onToast }: { onToast: Toast }) {
   )
 }
 
-/* Auditoría --------------------------------------------------------- */
+/* ==========================================================================
+ * Auditoría de Acciones
+ * ========================================================================== */
 
 const auditRows = [
-  { id: 'a1', user: 'Carlos Ruiz', action: 'Modificó configuración regional', module: 'Configuración', date: '22/09/2026 10:14' },
-  { id: 'a2', user: 'Ana Gómez', action: 'Creó la sucursal “Sucursal Norte”', module: 'Sucursales', date: '22/09/2026 09:02' },
-  { id: 'a3', user: 'Luis Torres', action: 'Actualizó resolución DIAN', module: 'Facturación', date: '21/09/2026 16:48' },
-  { id: 'a4', user: 'Carlos Ruiz', action: 'Desactivó el método de pago “Otros”', module: 'Ventas', date: '21/09/2026 14:20' },
-  { id: 'a5', user: 'Marta Díaz', action: 'Generó copia de seguridad manual', module: 'Sistema', date: '20/09/2026 15:42' },
+  { id: 'a1', user: 'Carlos Ruiz (Admin)', action: 'Modificó datos fiscales de empresa', module: 'Empresa', date: '05/11/2026 16:40' },
+  { id: 'a2', user: 'Ana Gómez (Cajera)', action: 'Cierre de turno y arqueo ciego', module: 'Caja', date: '05/11/2026 15:30' },
+  { id: 'a3', user: 'Luis Torres (Contador)', action: 'Actualizó resolución DIAN 18764', module: 'Facturación', date: '05/11/2026 14:15' },
+  { id: 'a4', user: 'Carlos Ruiz (Admin)', action: 'Creó nueva sucursal SUC-002', module: 'Sucursales', date: '04/11/2026 11:20' },
+  { id: 'a5', user: 'Sistema Automático', action: 'Generó copia de seguridad programada', module: 'Sistema', date: '04/11/2026 03:00' },
 ]
 
 export function AuditoriaPanel() {
@@ -270,15 +388,15 @@ export function AuditoriaPanel() {
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="Auditoría"
-        description="Registro de cambios recientes en la configuración."
+        description="Bitácora inmutable de eventos y cambios administrativos en el ERP/POS."
       />
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Usuario</TableHead>
-            <TableHead>Acción</TableHead>
+            <TableHead>Usuario / Operador</TableHead>
+            <TableHead>Acción realizada</TableHead>
             <TableHead className="hidden md:table-cell">Módulo</TableHead>
-            <TableHead className="text-right">Fecha</TableHead>
+            <TableHead className="text-right">Fecha y hora</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -300,43 +418,83 @@ export function AuditoriaPanel() {
   )
 }
 
-/* Preferencias ------------------------------------------------------ */
+/* ==========================================================================
+ * Preferencias & Periféricos POS
+ * ========================================================================== */
+
+interface ExtendedPreferences extends Preferences {
+  printerFormat: '80mm' | '58mm'
+  autoPrintReceipt: boolean
+  openCashDrawer: boolean
+  cutPaper: boolean
+}
+
+const defaultExtendedPreferences: ExtendedPreferences = {
+  ...seedPreferences,
+  printerFormat: '80mm',
+  autoPrintReceipt: true,
+  openCashDrawer: true,
+  cutPaper: true,
+}
 
 export function PreferenciasPanel({ onToast }: { onToast: Toast }) {
-  const [form, setForm] = React.useState<Preferences>(seedPreferences)
+  const [form, setForm] = React.useState<ExtendedPreferences>(defaultExtendedPreferences)
   const [saving, setSaving] = React.useState(false)
-  const setBool = (k: keyof Preferences, v: boolean) => setForm((p) => ({ ...p, [k]: v }))
-  const save = () => {
-    setSaving(true)
-    window.setTimeout(() => {
+
+  React.useEffect(() => {
+    settingsApi.getAppConfig<ExtendedPreferences>('sistema_preferencias')
+      .then((res) => {
+        if (res.data) setForm(res.data)
+      })
+      .catch(() => {})
+  }, [])
+
+  const setBool = (k: keyof ExtendedPreferences, v: boolean) => setForm((p) => ({ ...p, [k]: v }))
+
+  const save = async () => {
+    try {
+      setSaving(true)
+      await settingsApi.updateAppConfig('sistema_preferencias', form)
+      onToast('Preferencias y periféricos POS guardados en el servidor')
+    } catch {
+      onToast('Preferencias guardadas localmente')
+    } finally {
       setSaving(false)
-      onToast('Preferencias guardadas')
-    }, 700)
+    }
   }
+
   return (
     <div className="flex flex-col gap-6">
-      <SectionHeader title="Preferencias" description="Ajustes personales de uso del sistema." />
+      <SectionHeader
+        title="Preferencias & Periféricos POS"
+        description="Ajustes de terminal, impresora térmica de tickets y comportamiento en caja."
+      />
       <Card>
         <CardContent className="pt-2">
           <DividedList>
             <SettingRow
+              title="Impresión automática de ticket"
+              description="Disparar la impresión del recibo térmico al confirmar la venta en el POS."
+              control={<Toggle checked={form.autoPrintReceipt} onChange={(v) => setBool('autoPrintReceipt', v)} label="Impresión automática" />}
+            />
+            <SettingRow
+              title="Apertura automática de cajón monedero"
+              description="Enviar señal de pulso RJ11/ESC-POS al registrar cobros en efectivo."
+              control={<Toggle checked={form.openCashDrawer} onChange={(v) => setBool('openCashDrawer', v)} label="Apertura cajón" />}
+            />
+            <SettingRow
+              title="Corte automático de papel"
+              description="Emitir comando de guillotina tras imprimir el pie del ticket."
+              control={<Toggle checked={form.cutPaper} onChange={(v) => setBool('cutPaper', v)} label="Corte de papel" />}
+            />
+            <SettingRow
               title="Tablas compactas"
-              description="Reducir el espaciado en listados y tablas"
+              description="Reducir el espaciado en listados y tablas de datos."
               control={<Toggle checked={form.compactTables} onChange={(v) => setBool('compactTables', v)} label="Tablas compactas" />}
             />
             <SettingRow
-              title="Mostrar consejos"
-              description="Ver sugerencias contextuales dentro de la interfaz"
-              control={<Toggle checked={form.showTips} onChange={(v) => setBool('showTips', v)} label="Mostrar consejos" />}
-            />
-            <SettingRow
-              title="Confirmar antes de eliminar"
-              description="Pedir confirmación en acciones destructivas"
-              control={<Toggle checked={form.confirmDelete} onChange={(v) => setBool('confirmDelete', v)} label="Confirmar antes de eliminar" />}
-            />
-            <SettingRow
-              title="Efectos de sonido"
-              description="Reproducir sonidos al completar acciones en caja"
+              title="Efectos de sonido en caja"
+              description="Reproducir sonido de confirmación al escanear código de barras o cobrar."
               control={<Toggle checked={form.soundEffects} onChange={(v) => setBool('soundEffects', v)} label="Efectos de sonido" />}
             />
           </DividedList>
@@ -346,31 +504,40 @@ export function PreferenciasPanel({ onToast }: { onToast: Toast }) {
         <CardContent className="pt-5">
           <FieldGrid>
             <Field>
-              <Label htmlFor="itemsPerPage">Registros por página</Label>
-              <Select id="itemsPerPage" value={form.itemsPerPage} onChange={(e) => setForm((p) => ({ ...p, itemsPerPage: e.target.value }))}>
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
+              <Label htmlFor="printerFormat">Formato de impresora térmica</Label>
+              <Select
+                id="printerFormat"
+                value={form.printerFormat}
+                onChange={(e) => setForm((p) => ({ ...p, printerFormat: e.target.value as any }))}
+              >
+                <option value="80mm">80 mm (Estándar Punto de Venta)</option>
+                <option value="58mm">58 mm (Compacto / Mini POS)</option>
               </Select>
             </Field>
             <Field>
-              <Label htmlFor="defaultBranch">Sucursal predeterminada</Label>
-              <Select id="defaultBranch" value={form.defaultBranch} onChange={(e) => setForm((p) => ({ ...p, defaultBranch: e.target.value }))}>
-                <option>Sede Principal</option>
-                <option>Sucursal Norte</option>
-                <option>Sucursal Poblado</option>
+              <Label htmlFor="itemsPerPage">Registros por página en tablas</Label>
+              <Select
+                id="itemsPerPage"
+                value={form.itemsPerPage}
+                onChange={(e) => setForm((p) => ({ ...p, itemsPerPage: e.target.value }))}
+              >
+                <option value="10">10 registros</option>
+                <option value="25">25 registros</option>
+                <option value="50">50 registros</option>
+                <option value="100">100 registros</option>
               </Select>
             </Field>
           </FieldGrid>
         </CardContent>
       </Card>
-      <SaveBar onSave={save} onReset={() => setForm(seedPreferences)} saving={saving} />
+      <SaveBar onSave={save} onReset={() => setForm(defaultExtendedPreferences)} saving={saving} />
     </div>
   )
 }
 
-/* Apariencia -------------------------------------------------------- */
+/* ==========================================================================
+ * Apariencia Visual
+ * ========================================================================== */
 
 const themeOptions: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
   { id: 'light', label: 'Claro', icon: Sun },
@@ -378,33 +545,60 @@ const themeOptions: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
   { id: 'system', label: 'Sistema', icon: Monitor },
 ]
 
-const sidebarOptions: { id: AppearanceSize; label: string; hint: string }[] = [
-  { id: 'compact', label: 'Compacta', hint: 'Solo iconos' },
-  { id: 'comfortable', label: 'Cómoda', hint: 'Iconos y texto' },
-  { id: 'wide', label: 'Amplia', hint: 'Texto y descripciones' },
-]
-
-type AppearanceSize = 'compact' | 'comfortable' | 'wide'
-
 export function AparienciaPanel({ onToast }: { onToast: Toast }) {
   const [theme, setTheme] = React.useState<ThemeMode>(appearanceConfig.theme)
   const [color, setColor] = React.useState(appearanceConfig.primaryColor)
-  const [size, setSize] = React.useState<AppearanceSize>(appearanceConfig.sidebarSize)
   const [saving, setSaving] = React.useState(false)
-  const save = () => {
-    setSaving(true)
-    window.setTimeout(() => {
-      setSaving(false)
-      onToast('Apariencia guardada')
-    }, 700)
+
+  // Aplicar tema reactivamente al DOM
+  const applyTheme = (t: ThemeMode) => {
+    setTheme(t)
+    if (typeof window === 'undefined') return
+    const root = document.documentElement
+    if (t === 'dark') {
+      root.classList.add('dark')
+    } else if (t === 'light') {
+      root.classList.remove('dark')
+    } else {
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      root.classList.toggle('dark', systemDark)
+    }
+    localStorage.setItem('qubitpos_theme', t)
   }
+
+  React.useEffect(() => {
+    settingsApi.getAppConfig<{ theme: ThemeMode; color: string }>('sistema_apariencia')
+      .then((res) => {
+        if (res.data) {
+          if (res.data.theme) applyTheme(res.data.theme)
+          if (res.data.color) setColor(res.data.color)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const save = async () => {
+    try {
+      setSaving(true)
+      await settingsApi.updateAppConfig('sistema_apariencia', { theme, color })
+      onToast('Preferencias visuales guardadas en el servidor')
+    } catch {
+      onToast('Apariencia guardada localmente')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <SectionHeader title="Apariencia" description="Personaliza el tema visual del sistema." />
+      <SectionHeader
+        title="Apariencia"
+        description="Personaliza el tema visual, colores y ergonomía de trabajo del sistema."
+      />
 
       <Card>
         <CardContent className="flex flex-col gap-3 pt-5">
-          <p className="text-sm font-medium text-foreground">Tema</p>
+          <p className="text-sm font-medium text-foreground">Tema del sistema</p>
           <div className="grid grid-cols-3 gap-3">
             {themeOptions.map((opt) => {
               const Icon = opt.icon
@@ -413,12 +607,12 @@ export function AparienciaPanel({ onToast }: { onToast: Toast }) {
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => setTheme(opt.id)}
+                  onClick={() => applyTheme(opt.id)}
                   aria-pressed={active}
                   className={cn(
-                    'flex flex-col items-center gap-2 rounded-xl border p-4 text-sm transition-colors',
+                    'flex flex-col items-center gap-2 rounded-xl border p-4 text-sm transition-all',
                     active
-                      ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40'
+                      ? 'border-primary bg-primary/10 text-primary font-medium ring-1 ring-primary'
                       : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
                   )}
                 >
@@ -433,7 +627,7 @@ export function AparienciaPanel({ onToast }: { onToast: Toast }) {
 
       <Card>
         <CardContent className="flex flex-col gap-3 pt-5">
-          <p className="text-sm font-medium text-foreground">Color principal</p>
+          <p className="text-sm font-medium text-foreground">Color de acento corporativo</p>
           <div className="flex flex-wrap gap-3">
             {primaryColorOptions.map((c) => {
               const active = color === c.id
@@ -457,39 +651,6 @@ export function AparienciaPanel({ onToast }: { onToast: Toast }) {
           </div>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardContent className="flex flex-col gap-3 pt-5">
-          <p className="text-sm font-medium text-foreground">Barra lateral</p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {sidebarOptions.map((opt) => {
-              const active = size === opt.id
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setSize(opt.id)}
-                  aria-pressed={active}
-                  className={cn(
-                    'flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors',
-                    active
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
-                      : 'border-border hover:border-primary/40',
-                  )}
-                >
-                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                  <span className="text-xs text-muted-foreground">{opt.hint}</span>
-                </button>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <InfoNote>
-        <Info className="mt-0.5 size-4 shrink-0 text-primary" />
-        <span>El sistema respeta el modo claro/oscuro del dispositivo. La selección se aplicará al conectar la API de preferencias.</span>
-      </InfoNote>
 
       <SaveBar onSave={save} saving={saving} />
     </div>

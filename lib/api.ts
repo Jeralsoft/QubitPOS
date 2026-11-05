@@ -739,6 +739,7 @@ export interface DianResolutionRecord {
   current_number: number
   issued_at: string
   expires_at: string
+  technical_key?: string
   status: 'Vigente' | 'Por vencer' | 'Vencida'
   is_active: boolean
 }
@@ -754,7 +755,7 @@ export interface SystemRoleRecord {
 export const settingsApi = {
   getCompany: () => api.get<{ data: CompanySettingRecord }>('settings/company'),
 
-  updateCompany: (data: CompanySettingRecord) =>
+  updateCompany: (data: Partial<CompanySettingRecord>) =>
     api.post<{ message: string; data: CompanySettingRecord }>('settings/company', data),
 
   getDian: () => api.get<{ data: DianSettingRecord }>('settings/dian'),
@@ -762,22 +763,70 @@ export const settingsApi = {
   updateDian: (data: Partial<DianSettingRecord>) =>
     api.post<{ message: string; data: DianSettingRecord }>('settings/dian', data),
 
+  testDianConnection: () =>
+    api.post<{ success: boolean; message: string; environment: string; software_id: string; latency_ms: number; timestamp: string }>(
+      'settings/dian/test-connection',
+      {},
+    ),
+
   getBranches: () => api.get<{ data: BranchRecord[] }>('settings/branches'),
 
   createBranch: (data: Partial<BranchRecord>) =>
     api.post<{ message: string; data: BranchRecord }>('settings/branches', data),
+
+  updateBranch: (id: number | string, data: Partial<BranchRecord>) =>
+    api.put<{ message: string; data: BranchRecord }>(`settings/branches/${id}`, data),
+
+  deleteBranch: (id: number | string) =>
+    api.delete<{ message: string }>(`settings/branches/${id}`),
+
+  toggleBranch: (id: number | string) =>
+    api.patch<{ message: string; data: BranchRecord }>(`settings/branches/${id}/toggle`, {}),
 
   getCashRegisters: () => api.get<{ data: CashRegisterRecord[] }>('settings/cash-registers'),
 
   createCashRegister: (data: Partial<CashRegisterRecord>) =>
     api.post<{ message: string; data: CashRegisterRecord }>('settings/cash-registers', data),
 
+  updateCashRegister: (id: number | string, data: Partial<CashRegisterRecord>) =>
+    api.put<{ message: string; data: CashRegisterRecord }>(`settings/cash-registers/${id}`, data),
+
+  deleteCashRegister: (id: number | string) =>
+    api.delete<{ message: string }>(`settings/cash-registers/${id}`),
+
+  toggleCashRegister: (id: number | string) =>
+    api.patch<{ message: string; data: CashRegisterRecord }>(`settings/cash-registers/${id}/toggle`, {}),
+
   getResolutions: () => api.get<{ data: DianResolutionRecord[] }>('settings/resolutions'),
 
   createResolution: (data: Partial<DianResolutionRecord>) =>
     api.post<{ message: string; data: DianResolutionRecord }>('settings/resolutions', data),
 
+  updateResolution: (id: number | string, data: Partial<DianResolutionRecord>) =>
+    api.put<{ message: string; data: DianResolutionRecord }>(`settings/resolutions/${id}`, data),
+
+  deleteResolution: (id: number | string) =>
+    api.delete<{ message: string }>(`settings/resolutions/${id}`),
+
   getRoles: () => api.get<{ data: SystemRoleRecord[] }>('settings/roles'),
+
+  createRole: (data: Partial<SystemRoleRecord>) =>
+    api.post<{ message: string; data: SystemRoleRecord }>('settings/roles', data),
+
+  getPermissions: () =>
+    api.get<{ data: Array<{ id: number; code: string; name: string; module: string }> }>('settings/permissions'),
+
+  getAppConfig: <T = any>(key?: string) =>
+    api.get<{ key?: string; data: T }>('settings/app-config' + (key ? `?key=${key}` : '')),
+
+  updateAppConfig: <T = any>(key: string, value: T) =>
+    api.post<{ message: string; data: T }>('settings/app-config', { key, value }),
+
+  testMailConnection: (data: { host: string; port: number; email: string }) =>
+    api.post<{ success: boolean; message: string }>('settings/mail/test-connection', data),
+
+  createBackup: () =>
+    api.get<{ message: string; backup: any }>('settings/backup/export'),
 }
 
 /* ==========================================================================

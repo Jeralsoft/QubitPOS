@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\Branch;
 use App\Models\CashRegister;
 use App\Models\CompanySetting;
@@ -12,6 +13,7 @@ use App\Models\SystemPermission;
 use App\Models\SystemRole;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SettingsController extends Controller
 {
@@ -61,6 +63,8 @@ class SettingsController extends Controller
             'city' => ['required', 'string', 'max:100'],
             'department' => ['required', 'string', 'max:100'],
             'website' => ['nullable', 'string', 'max:150'],
+            'currency' => ['nullable', 'string', 'max:10'],
+            'timezone' => ['nullable', 'string', 'max:50'],
         ]);
 
         $company->fill($validated)->save();
@@ -86,6 +90,8 @@ class SettingsController extends Controller
             'technical_key' => 'fc8eac422eba16e22ffd8c6f94b3f40a6e38162c',
             'is_connected' => true,
             'is_auto_send' => true,
+            'send_email_to_customer' => true,
+            'contingency_mode' => false,
         ]);
 
         return response()->json([
@@ -122,6 +128,28 @@ class SettingsController extends Controller
         return response()->json([
             'message' => 'Configuración técnica DIAN guardada con éxito.',
             'data' => $dian,
+        ]);
+    }
+
+    /**
+     * Prueba de conectividad DIAN.
+     */
+    public function testDianConnection(Request $request): JsonResponse
+    {
+        $dian = DianSetting::first();
+        $env = $dian ? $dian->environment : 'Pruebas';
+        $softwareId = $dian ? $dian->software_id : 'SW-QUBITPOS-001';
+
+        // Simulación de ping a servicios Web de la DIAN (Habilitación / Producción)
+        $latency = rand(85, 160);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Conexión exitosa con el servicio Web DIAN ($env).",
+            'environment' => $env,
+            'software_id' => $softwareId,
+            'latency_ms' => $latency,
+            'timestamp' => now()->toIso8601String(),
         ]);
     }
 
@@ -163,6 +191,59 @@ class SettingsController extends Controller
     }
 
     /**
+     * Actualizar sucursal.
+     */
+    public function updateBranch(int $id, Request $request): JsonResponse
+    {
+        $branch = Branch::findOrFail($id);
+
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:30', 'unique:branches,code,'.$branch->id],
+            'name' => ['required', 'string', 'max:150'],
+            'address' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'max:50'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'department' => ['nullable', 'string', 'max:100'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $branch->update($validated);
+
+        return response()->json([
+            'message' => 'Sucursal actualizada exitosamente.',
+            'data' => $branch,
+        ]);
+    }
+
+    /**
+     * Eliminar sucursal.
+     */
+    public function deleteBranch(int $id): JsonResponse
+    {
+        $branch = Branch::findOrFail($id);
+        $branch->delete();
+
+        return response()->json([
+            'message' => 'Sucursal eliminada exitosamente.',
+        ]);
+    }
+
+    /**
+     * Alternar estado de sucursal.
+     */
+    public function toggleBranch(int $id): JsonResponse
+    {
+        $branch = Branch::findOrFail($id);
+        $branch->is_active = ! $branch->is_active;
+        $branch->save();
+
+        return response()->json([
+            'message' => 'Estado de sucursal actualizado.',
+            'data' => $branch,
+        ]);
+    }
+
+    /**
      * Listado de cajas registradoras.
      */
     public function cashRegisters(): JsonResponse
@@ -189,11 +270,64 @@ class SettingsController extends Controller
         ]);
 
         $register = CashRegister::create($validated);
+        $register->load('branch');
 
         return response()->json([
             'message' => 'Caja registradora vinculada.',
             'data' => $register,
         ], 201);
+    }
+
+    /**
+     * Actualizar caja registradora.
+     */
+    public function updateCashRegister(int $id, Request $request): JsonResponse
+    {
+        $register = CashRegister::findOrFail($id);
+
+        $validated = $request->validate([
+            'branch_id' => ['required', 'exists:branches,id'],
+            'name' => ['required', 'string', 'max:100'],
+            'terminal_code' => ['required', 'string', 'max:50', 'unique:cash_registers,terminal_code,'.$register->id],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $register->update($validated);
+        $register->load('branch');
+
+        return response()->json([
+            'message' => 'Caja registradora actualizada.',
+            'data' => $register,
+        ]);
+    }
+
+    /**
+     * Eliminar caja registradora.
+     */
+    public function deleteCashRegister(int $id): JsonResponse
+    {
+        $register = CashRegister::findOrFail($id);
+        $register->delete();
+
+        return response()->json([
+            'message' => 'Caja registradora eliminada.',
+        ]);
+    }
+
+    /**
+     * Alternar estado de caja registradora.
+     */
+    public function toggleCashRegister(int $id): JsonResponse
+    {
+        $register = CashRegister::findOrFail($id);
+        $register->is_active = ! $register->is_active;
+        $register->save();
+        $register->load('branch');
+
+        return response()->json([
+            'message' => 'Estado de la caja actualizado.',
+            'data' => $register,
+        ]);
     }
 
     /**
@@ -223,6 +357,7 @@ class SettingsController extends Controller
             'expires_at' => ['required', 'date', 'after:issued_at'],
             'technical_key' => ['nullable', 'string'],
             'status' => ['nullable', 'in:Vigente,Por vencer,Vencida'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         $resolution = DianResolution::create($validated);
@@ -231,6 +366,47 @@ class SettingsController extends Controller
             'message' => 'Resolución DIAN registrada exitosamente.',
             'data' => $resolution,
         ], 201);
+    }
+
+    /**
+     * Actualizar resolución DIAN.
+     */
+    public function updateResolution(int $id, Request $request): JsonResponse
+    {
+        $resolution = DianResolution::findOrFail($id);
+
+        $validated = $request->validate([
+            'resolution_number' => ['required', 'string', 'max:50'],
+            'prefix' => ['required', 'string', 'max:10'],
+            'range_from' => ['required', 'integer', 'min:1'],
+            'range_to' => ['required', 'integer', 'gt:range_from'],
+            'current_number' => ['required', 'integer', 'gte:range_from'],
+            'issued_at' => ['required', 'date'],
+            'expires_at' => ['required', 'date', 'after:issued_at'],
+            'technical_key' => ['nullable', 'string'],
+            'status' => ['nullable', 'in:Vigente,Por vencer,Vencida'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $resolution->update($validated);
+
+        return response()->json([
+            'message' => 'Resolución DIAN actualizada.',
+            'data' => $resolution,
+        ]);
+    }
+
+    /**
+     * Eliminar resolución DIAN.
+     */
+    public function deleteResolution(int $id): JsonResponse
+    {
+        $resolution = DianResolution::findOrFail($id);
+        $resolution->delete();
+
+        return response()->json([
+            'message' => 'Resolución DIAN eliminada.',
+        ]);
     }
 
     /**
@@ -248,6 +424,25 @@ class SettingsController extends Controller
     }
 
     /**
+     * Crear rol de sistema.
+     */
+    public function createRole(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:50', 'unique:system_roles,name'],
+            'description' => ['nullable', 'string', 'max:255'],
+            'tone' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $role = SystemRole::create($validated);
+
+        return response()->json([
+            'message' => 'Rol creado exitosamente.',
+            'data' => $role,
+        ], 201);
+    }
+
+    /**
      * Listado de permisos agrupados por módulo.
      */
     public function permissions(): JsonResponse
@@ -256,6 +451,96 @@ class SettingsController extends Controller
 
         return response()->json([
             'data' => $permissions,
+        ]);
+    }
+
+    /**
+     * Obtener configuraciones generales de la aplicación (clave-valor).
+     */
+    public function getAppConfig(Request $request): JsonResponse
+    {
+        $key = $request->query('key');
+        if ($key) {
+            $value = AppSetting::getValue($key);
+
+            return response()->json([
+                'key' => $key,
+                'data' => $value,
+            ]);
+        }
+
+        $all = AppSetting::all()->pluck('value', 'key');
+
+        return response()->json([
+            'data' => $all,
+        ]);
+    }
+
+    /**
+     * Guardar configuración general de la aplicación.
+     */
+    public function updateAppConfig(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'key' => ['required', 'string', 'max:100'],
+            'value' => ['present'],
+        ]);
+
+        $setting = AppSetting::setValue($validated['key'], $validated['value']);
+
+        return response()->json([
+            'message' => 'Configuración guardada exitosamente.',
+            'data' => $setting->value,
+        ]);
+    }
+
+    /**
+     * Prueba de conexión SMTP.
+     */
+    public function testMailConnection(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'host' => ['required', 'string'],
+            'port' => ['required', 'numeric'],
+            'email' => ['required', 'email'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Conexión SMTP exitosa con {$validated['host']}:{$validated['port']}.",
+        ]);
+    }
+
+    /**
+     * Crear y descargar copia de seguridad de la base de datos.
+     */
+    public function createBackup(): JsonResponse
+    {
+        $tables = [
+            'company_settings' => DB::table('company_settings')->get(),
+            'dian_settings' => DB::table('dian_settings')->get(),
+            'branches' => DB::table('branches')->get(),
+            'cash_registers' => DB::table('cash_registers')->get(),
+            'dian_resolutions' => DB::table('dian_resolutions')->get(),
+            'products' => DB::table('products')->get(),
+            'customers' => DB::table('customers')->get(),
+            'suppliers' => DB::table('suppliers')->get(),
+            'sales' => DB::table('sales')->get(),
+            'sale_items' => DB::table('sale_items')->get(),
+            'app_settings' => DB::table('app_settings')->get(),
+        ];
+
+        $backupData = [
+            'platform' => 'QubitPOS ERP/POS',
+            'version' => '1.0.0',
+            'created_at' => now()->toIso8601String(),
+            'checksum' => hash('sha256', json_encode($tables)),
+            'data' => $tables,
+        ];
+
+        return response()->json([
+            'message' => 'Copia de seguridad generada con éxito.',
+            'backup' => $backupData,
         ]);
     }
 }

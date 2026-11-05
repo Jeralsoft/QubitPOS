@@ -89,7 +89,24 @@ class SettingsTest extends TestCase
 
         $branchId = $branchResponse->json('data.id');
 
-        // 2. Crear caja vinculada
+        // 2. Actualizar y alternar sucursal
+        $updateBranch = $this->putJson("/api/settings/branches/{$branchId}", [
+            'code' => 'SUC-OCC-MOD',
+            'name' => 'Sucursal Occidente Modificada',
+            'address' => 'Av San Juan # 70-15',
+            'phone' => '+57 604 444 3322',
+            'city' => 'Medellín',
+            'department' => 'Antioquia',
+            'is_active' => true,
+        ]);
+        $updateBranch->assertStatus(200)
+            ->assertJsonPath('data.code', 'SUC-OCC-MOD');
+
+        $toggleBranch = $this->patchJson("/api/settings/branches/{$branchId}/toggle");
+        $toggleBranch->assertStatus(200)
+            ->assertJsonPath('data.is_active', false);
+
+        // 3. Crear caja vinculada
         $registerResponse = $this->postJson('/api/settings/cash-registers', [
             'branch_id' => $branchId,
             'name' => 'Caja Rápida 01',
@@ -100,9 +117,62 @@ class SettingsTest extends TestCase
         $registerResponse->assertStatus(201)
             ->assertJsonPath('data.name', 'Caja Rápida 01');
 
+        $regId = $registerResponse->json('data.id');
+
+        $toggleReg = $this->patchJson("/api/settings/cash-registers/{$regId}/toggle");
+        $toggleReg->assertStatus(200)
+            ->assertJsonPath('data.is_active', false);
+
         $listBranches = $this->getJson('/api/settings/branches');
         $listBranches->assertStatus(200)
-            ->assertJsonFragment(['code' => 'SUC-OCC']);
+            ->assertJsonFragment(['code' => 'SUC-OCC-MOD']);
+    }
+
+    public function test_can_test_dian_and_mail_connections(): void
+    {
+        $dianTest = $this->postJson('/api/settings/dian/test-connection');
+        $dianTest->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $mailTest = $this->postJson('/api/settings/mail/test-connection', [
+            'host' => 'smtp.test.com',
+            'port' => 587,
+            'email' => 'admin@qubitpos.co',
+        ]);
+        $mailTest->assertStatus(200)
+            ->assertJsonPath('success', true);
+    }
+
+    public function test_can_store_and_retrieve_app_config(): void
+    {
+        $saveResponse = $this->postJson('/api/settings/app-config', [
+            'key' => 'sistema_preferencias',
+            'value' => [
+                'printerFormat' => '80mm',
+                'autoPrintReceipt' => true,
+            ],
+        ]);
+
+        $saveResponse->assertStatus(200);
+
+        $getResponse = $this->getJson('/api/settings/app-config?key=sistema_preferencias');
+        $getResponse->assertStatus(200)
+            ->assertJsonPath('data.printerFormat', '80mm');
+    }
+
+    public function test_can_export_database_backup(): void
+    {
+        $backupResponse = $this->getJson('/api/settings/backup/export');
+        $backupResponse->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'backup' => [
+                    'platform',
+                    'version',
+                    'checksum',
+                    'data',
+                ],
+            ]);
     }
 
     public function test_can_create_and_list_dian_resolutions(): void
