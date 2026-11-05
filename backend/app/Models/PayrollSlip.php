@@ -46,6 +46,33 @@ class PayrollSlip extends Model
         'net_paid' => 'decimal:2',
     ];
 
+    protected $appends = [
+        'accrued_salary',
+        'overtime_accrued',
+        'total_accrued',
+        'total_deductions',
+    ];
+
+    public function getAccruedSalaryAttribute(): float
+    {
+        return (float) ($this->base_salary ?? 0);
+    }
+
+    public function getOvertimeAccruedAttribute(): float
+    {
+        return (float) ($this->overtime_amount ?? 0);
+    }
+
+    public function getTotalAccruedAttribute(): float
+    {
+        return (float) ($this->total_devengado ?? 0);
+    }
+
+    public function getTotalDeductionsAttribute(): float
+    {
+        return (float) ($this->total_deducciones ?? 0);
+    }
+
     public function period(): BelongsTo
     {
         return $this->belongsTo(PayrollPeriod::class, 'payroll_period_id');

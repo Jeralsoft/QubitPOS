@@ -204,4 +204,126 @@ class PayrollController extends Controller
             'data' => $novelty,
         ], 201);
     }
+
+    /**
+     * Actualizar datos de un empleado.
+     */
+    public function updateEmployee(Request $request, int $id): JsonResponse
+    {
+        $employee = Employee::findOrFail($id);
+
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'document_type' => ['nullable', 'string', 'max:10'],
+            'document_number' => ['required', 'string', 'max:30', 'unique:employees,document_number,' . $id],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:100'],
+            'role' => ['required', 'string', 'max:100'],
+            'department' => ['required', 'string', 'max:100'],
+            'branch' => ['nullable', 'string', 'max:100'],
+            'contract_type' => ['nullable', 'string', 'max:50'],
+            'start_date' => ['required', 'date'],
+            'base_salary' => ['required', 'numeric', 'min:0'],
+            'has_transport_allowance' => ['nullable', 'boolean'],
+            'status' => ['nullable', 'in:activo,inactivo,vacaciones,suspendido'],
+            'eps' => ['nullable', 'string'],
+            'pension_fund' => ['nullable', 'string'],
+            'arl' => ['nullable', 'string'],
+            'bank_name' => ['nullable', 'string'],
+            'account_number' => ['nullable', 'string'],
+        ]);
+
+        $employee->update($validated);
+
+        return response()->json([
+            'message' => 'Empleado actualizado con éxito.',
+            'data' => $employee->fresh(),
+        ]);
+    }
+
+    /**
+     * Alternar estado activo / inactivo de un empleado.
+     */
+    public function toggleEmployeeStatus(int $id): JsonResponse
+    {
+        $employee = Employee::findOrFail($id);
+        $newStatus = $employee->status === 'activo' ? 'inactivo' : 'activo';
+        $employee->update(['status' => $newStatus]);
+
+        return response()->json([
+            'message' => "Estado del empleado actualizado a {$newStatus}.",
+            'data' => $employee,
+        ]);
+    }
+
+    /**
+     * Eliminar empleado si no tiene desprendibles asociados.
+     */
+    public function deleteEmployee(int $id): JsonResponse
+    {
+        $employee = Employee::findOrFail($id);
+
+        if ($employee->slips()->exists()) {
+            return response()->json([
+                'message' => 'No es posible eliminar el colaborador porque cuenta con desprendibles de nómina liquidados. En su lugar, inactive su contrato laboral.',
+            ], 422);
+        }
+
+        $employee->novelties()->delete();
+        $employee->delete();
+
+        return response()->json([
+            'message' => 'Empleado eliminado con éxito.',
+        ]);
+    }
+
+    /**
+     * Eliminar periodo de nómina.
+     */
+    public function deletePeriod(int $id): JsonResponse
+    {
+        $period = PayrollPeriod::findOrFail($id);
+
+        if ($period->status === 'PAID') {
+            return response()->json([
+                'message' => 'No se puede eliminar un período que ya ha sido pagado.',
+            ], 422);
+        }
+
+        $period->slips()->delete();
+        $period->novelties()->update(['payroll_period_id' => null]);
+        $period->delete();
+
+        return response()->json([
+            'message' => 'Período de nómina eliminado con éxito.',
+        ]);
+    }
+
+    /**
+     * Marcar período liquidado como pagado.
+     */
+    public function payPeriod(int $id): JsonResponse
+    {
+        $period = PayrollPeriod::findOrFail($id);
+        $period->update(['status' => 'PAID']);
+
+        return response()->json([
+            'message' => "Nómina {$period->name} marcada como pagada con éxito.",
+            'data' => $period,
+        ]);
+    }
+
+    /**
+     * Eliminar novedad de nómina.
+     */
+    public function deleteNovelty(int $id): JsonResponse
+    {
+        $novelty = PayrollNovelty::findOrFail($id);
+        $novelty->delete();
+
+        return response()->json([
+            'message' => 'Novedad de nómina eliminada con éxito.',
+        ]);
+    }
 }

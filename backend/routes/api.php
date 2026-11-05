@@ -127,15 +127,21 @@ Route::prefix('contabilidad')->group(function () {
 Route::prefix('nomina')->group(function () {
     Route::get('/periods', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'periods']);
     Route::post('/periods', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'createPeriod']);
+    Route::delete('/periods/{id}', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'deletePeriod']);
     Route::post('/periods/{id}/liquidate', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'liquidate']);
+    Route::post('/periods/{id}/pay', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'payPeriod']);
     Route::get('/periods/{id}/slips', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'slips']);
     Route::get('/slips/{id}/xml', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'downloadSlipXml']);
 
     Route::get('/employees', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'employees']);
     Route::post('/employees', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'createEmployee']);
+    Route::put('/employees/{id}', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'updateEmployee']);
+    Route::patch('/employees/{id}/toggle-status', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'toggleEmployeeStatus']);
+    Route::delete('/employees/{id}', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'deleteEmployee']);
 
     Route::get('/novelties', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'novelties']);
     Route::post('/novelties', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'createNovelty']);
+    Route::delete('/novelties/{id}', [\App\Http\Controllers\Api\Payroll\PayrollController::class, 'deleteNovelty']);
 });
 
 /*

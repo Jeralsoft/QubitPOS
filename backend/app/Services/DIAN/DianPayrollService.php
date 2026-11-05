@@ -76,15 +76,22 @@ class DianPayrollService
         $nomina->appendChild($xml->createElement('FechaEmision', $issueDate));
         $nomina->appendChild($xml->createElement('HoraEmision', $issueTime));
 
-        // Empleador
+        // Empleador (Configuración institucional o por defecto)
+        $company = \App\Models\AppSetting::get('company', []);
+        $razonSocial = !empty($company['business_name']) ? $company['business_name'] : 'QUBIT SOLUCIONES POS S.A.S.';
+        $nitVal = !empty($company['nit']) ? preg_replace('/\D/', '', $company['nit']) : '901456789';
+        $dvVal = !empty($company['dv']) ? (string) $company['dv'] : '3';
+        $direccionVal = !empty($company['address']) ? $company['address'] : 'Calle 30 # 45-12, Local 3';
+        $ciudadVal = !empty($company['city']) ? $company['city'] : '05001';
+
         $empleador = $xml->createElement('Empleador');
-        $empleador->appendChild($xml->createElement('RazonSocial', 'QUBIT SOLUCIONES POS S.A.S.'));
-        $empleador->appendChild($xml->createElement('NIT', '901456789'));
-        $empleador->appendChild($xml->createElement('DV', '3'));
+        $empleador->appendChild($xml->createElement('RazonSocial', $razonSocial));
+        $empleador->appendChild($xml->createElement('NIT', $nitVal));
+        $empleador->appendChild($xml->createElement('DV', $dvVal));
         $empleador->appendChild($xml->createElement('Pais', 'CO'));
         $empleador->appendChild($xml->createElement('DepartamentoEstado', '05')); // Antioquia
-        $empleador->appendChild($xml->createElement('MunicipioCiudad', '05001')); // Medellín
-        $empleador->appendChild($xml->createElement('Direccion', 'Calle 30 # 45-12, Local 3'));
+        $empleador->appendChild($xml->createElement('MunicipioCiudad', $ciudadVal));
+        $empleador->appendChild($xml->createElement('Direccion', $direccionVal));
         $nomina->appendChild($empleador);
 
         // Trabajador

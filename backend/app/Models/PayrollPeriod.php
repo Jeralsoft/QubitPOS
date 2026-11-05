@@ -29,6 +29,34 @@ class PayrollPeriod extends Model
         'total_neto' => 'decimal:2',
     ];
 
+    protected $appends = [
+        'total_accrued',
+        'total_deductions',
+        'total_net_paid',
+        'total_employer_cost',
+    ];
+
+    public function getTotalAccruedAttribute(): float
+    {
+        return (float) ($this->total_devengado ?? 0);
+    }
+
+    public function getTotalDeductionsAttribute(): float
+    {
+        return (float) ($this->total_deducciones ?? 0);
+    }
+
+    public function getTotalNetPaidAttribute(): float
+    {
+        return (float) ($this->total_neto ?? 0);
+    }
+
+    public function getTotalEmployerCostAttribute(): float
+    {
+        $devengado = (float) ($this->total_devengado ?? 0);
+        return round($devengado * 1.45, 2);
+    }
+
     public function slips(): HasMany
     {
         return $this->hasMany(PayrollSlip::class);

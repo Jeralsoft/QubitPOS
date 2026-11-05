@@ -42,6 +42,42 @@ class Employee extends Model
         'has_transport_allowance' => 'boolean',
     ];
 
+    protected $appends = [
+        'name',
+        'document',
+        'salary',
+        'contract',
+        'initials',
+    ];
+
+    public function getNameAttribute(): string
+    {
+        return "{$this->first_name} {$this->last_name}";
+    }
+
+    public function getDocumentAttribute(): string
+    {
+        $type = $this->document_type ?: 'CC';
+        return "{$type} {$this->document_number}";
+    }
+
+    public function getSalaryAttribute(): float
+    {
+        return (float) ($this->base_salary ?? 0);
+    }
+
+    public function getContractAttribute(): string
+    {
+        return ucfirst(str_replace('_', ' ', $this->contract_type ?: 'indefinido'));
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        $f = mb_substr($this->first_name ?: '', 0, 1);
+        $l = mb_substr($this->last_name ?: '', 0, 1);
+        return mb_strtoupper($f . $l) ?: 'EM';
+    }
+
     public function slips(): HasMany
     {
         return $this->hasMany(PayrollSlip::class);

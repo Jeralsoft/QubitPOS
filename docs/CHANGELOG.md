@@ -4,6 +4,29 @@ Todas las modificaciones notables realizadas en el proyecto están documentadas 
 
 ---
 
+## [2026-11-05] - Módulo de Nómina Electrónica & Laboral 100% Funcional (CST, PILA, DIAN UBL 2.1 & NIIF)
+
+### Añadido
+- **CRUD Integral de Colaboradores & Empleados:** Creación, edición completa, alternancia de estado laboral (`activo`, `inactivo`, `vacaciones`, `suspendido`) y eliminación segura vía `/api/nomina/employees`.
+- **Gestión de Ciclos y Períodos de Nómina:** Creación modal de períodos mensuales y quincenales, liquidación atómica, marcación de pago/dispersión bancaria (`POST /api/nomina/periods/{id}/pay`) y eliminación de borradores (`DELETE /api/nomina/periods/{id}`).
+- **Registro y Liquidación de Novedades Laborales:** Modal interactivo para horas extras diurnas (+25%), nocturnas (+75%), recargos nocturnos (+35%), comisiones por ventas POS, bonificaciones e incapacidades con persistencia en `payroll_novelties` y eliminación.
+- **Acceso Directo y Descarga de XML UBL 2.1 Oficial DIAN:** Generación en tiempo real del estándar `NominaIndividual` con CUNE SHA-384 reglamentario de 96 caracteres, datos del empleador/trabajador y comprobante XML descargable.
+- **Visualizador e Impresión de Desprendibles de Pago:** Modal de detalle con desglose legal de devengados (Art. 127 CST), deducciones de seguridad social (Salud 4% + Pensión 4%), asiento de partida doble y función de impresión.
+- **Exportación en CSV de Planilla PILA y Provisiones NIIF:** Descarga directa de archivos CSV con cálculo automático de IBC, aportes patronales y causación de prestaciones sociales (Cesantías 8.33%, Intereses 1%, Prima 8.33%, Vacaciones 4.17%).
+- **Validación de Paquete DIAN:** Verificación instantánea de hashes CUNE SHA-384 y estructura XML para todos los desprendibles del período activo.
+- **Suite de Pruebas Unitarias & Feature en PHPUnit:** Se alcanzaron 47/47 pruebas verdes (280 aserciones), verificando los flujos de liquidación, generación de XML UBL 2.1 y endpoints REST de nómina.
+
+### Modificado
+- `components/nomina/nomina.tsx`: Rediseño completo hacia una arquitectura 100% reactiva y conectada a la API de Laravel sin datos mockeados en operaciones de negocio.
+- `lib/api.ts`: Tipado estricto de interfaces laborales y ampliación de `nominaApi` con métodos `createPeriod`, `deletePeriod`, `payPeriod`, `createEmployee`, `updateEmployee`, `toggleEmployeeStatus`, `deleteEmployee`, `createNovelty`, `deleteNovelty`.
+- `backend/app/Models/PayrollPeriod.php`: Adición de `$appends` y accessors (`total_accrued`, `total_deductions`, `total_net_paid`, `total_employer_cost`).
+- `backend/app/Models/PayrollSlip.php`: Adición de `$appends` y accessors (`accrued_salary`, `overtime_accrued`, `total_accrued`, `total_deductions`).
+- `backend/app/Models/Employee.php`: Adición de `$appends` y accessors (`name`, `document`, `salary`, `contract`, `initials`).
+- `backend/app/Models/PayrollNovelty.php`: Adición de `$appends` y accessors (`employee_name`, `initials`, `type_label`, `value`).
+- `backend/app/Http/Controllers/Api/Payroll/PayrollController.php`: Implementación de `updateEmployee`, `toggleEmployeeStatus`, `deleteEmployee`, `deletePeriod`, `payPeriod`, `deleteNovelty`.
+- `backend/routes/api.php`: Registro de las rutas REST complementarias para nómina.
+- `backend/tests/Feature/PayrollEngineTest.php`: Incorporación de `test_can_manage_employees_crud` y `test_can_manage_periods_and_novelties`.
+
 ## [2026-11-05] - Módulo de Configuración 100% Funcional & Gobernanza Multi-Sede
 
 ### Añadido

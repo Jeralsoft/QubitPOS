@@ -482,16 +482,20 @@ export interface EmployeeRecord {
   code: string
   first_name: string
   last_name: string
+  name?: string
   document_type?: string | null
   document_number: string
+  document?: string
   phone?: string | null
   email?: string | null
   role: string
   department: string
   branch?: string | null
   contract_type?: string | null
+  contract?: string
   start_date: string
   base_salary: number | string
+  salary?: number
   has_transport_allowance: boolean
   status: 'activo' | 'inactivo' | 'vacaciones' | 'suspendido'
   eps?: string | null
@@ -499,6 +503,7 @@ export interface EmployeeRecord {
   arl?: string | null
   bank_name?: string | null
   account_number?: string | null
+  initials?: string
 }
 
 export interface PayrollPeriodRecord {
@@ -507,11 +512,14 @@ export interface PayrollPeriodRecord {
   start_date: string
   end_date: string
   period_type: 'mensual' | 'quincenal'
-  status: 'DRAFT' | 'LIQUIDATED' | 'PAID'
+  status: 'DRAFT' | 'LIQUIDATED' | 'APPROVED' | 'PAID'
   total_accrued: number
   total_deductions: number
   total_net_paid: number
   total_employer_cost: number
+  total_devengado?: number | string
+  total_deducciones?: number | string
+  total_neto?: number | string
   slips_count?: number
 }
 
@@ -523,18 +531,24 @@ export interface PayrollSlipRecord {
   cune?: string | null
   qr_code?: string | null
   worked_days: number
-  base_salary: number
-  accrued_salary: number
-  transport_allowance: number
-  overtime_accrued: number
-  other_accruals: number
-  total_accrued: number
-  health_deduction: number
-  pension_deduction: number
-  other_deductions: number
-  total_deductions: number
-  net_paid: number
-  status: 'DRAFT' | 'APPROVED' | 'DIAN_SENT'
+  base_salary: number | string
+  accrued_salary?: number | string
+  transport_allowance: number | string
+  overtime_accrued?: number | string
+  overtime_amount?: number | string
+  commissions?: number | string
+  bonuses?: number | string
+  other_accruals?: number | string
+  total_accrued: number | string
+  total_devengado?: number | string
+  health_deduction: number | string
+  pension_deduction: number | string
+  other_deductions?: number | string
+  total_deductions: number | string
+  total_deducciones?: number | string
+  net_paid: number | string
+  status?: string
+  dian_status?: string
   employee?: EmployeeRecord
   period?: PayrollPeriodRecord
 }
@@ -545,10 +559,15 @@ export interface PayrollNoveltyRecord {
   payroll_period_id?: number | null
   novelty_type: string
   quantity?: number | null
-  amount: number
+  amount: number | string
+  value?: number
+  employee_name?: string
+  initials?: string
+  type_label?: string
   notes?: string | null
   status: string
   employee?: EmployeeRecord
+  period?: PayrollPeriodRecord
 }
 
 export const nominaApi = {
@@ -561,8 +580,14 @@ export const nominaApi = {
     period_type?: 'mensual' | 'quincenal'
   }) => api.post<{ message: string; data: PayrollPeriodRecord }>('nomina/periods', data),
 
+  deletePeriod: (id: number | string) =>
+    api.delete<{ message: string }>(`nomina/periods/${id}`),
+
   liquidatePeriod: (id: number | string) =>
     api.post<{ message: string; data: PayrollPeriodRecord }>(`nomina/periods/${id}/liquidate`),
+
+  payPeriod: (id: number | string) =>
+    api.post<{ message: string; data: PayrollPeriodRecord }>(`nomina/periods/${id}/pay`),
 
   getSlips: (periodId: number | string) =>
     api.get<{ data: PayrollSlipRecord[] }>(`nomina/periods/${periodId}/slips`),
@@ -581,6 +606,15 @@ export const nominaApi = {
   createEmployee: (data: Partial<EmployeeRecord>) =>
     api.post<{ message: string; data: EmployeeRecord }>('nomina/employees', data),
 
+  updateEmployee: (id: number | string, data: Partial<EmployeeRecord>) =>
+    api.put<{ message: string; data: EmployeeRecord }>(`nomina/employees/${id}`, data),
+
+  toggleEmployeeStatus: (id: number | string) =>
+    api.patch<{ message: string; data: EmployeeRecord }>(`nomina/employees/${id}/toggle-status`),
+
+  deleteEmployee: (id: number | string) =>
+    api.delete<{ message: string }>(`nomina/employees/${id}`),
+
   getNovelties: () => api.get<{ data: PayrollNoveltyRecord[] }>('nomina/novelties'),
 
   createNovelty: (data: {
@@ -591,6 +625,9 @@ export const nominaApi = {
     amount: number
     notes?: string
   }) => api.post<{ message: string; data: PayrollNoveltyRecord }>('nomina/novelties', data),
+
+  deleteNovelty: (id: number | string) =>
+    api.delete<{ message: string }>(`nomina/novelties/${id}`),
 }
 
 /* ==========================================================================

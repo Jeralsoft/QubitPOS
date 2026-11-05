@@ -11,7 +11,7 @@ Agente Responsable: **Agente Orquestador** (`pos-orchestrator`)
 | :--- | :--- | :--- | :--- |
 | **Frontend (Next.js 16)** | `http://localhost:3002` | ✅ ACTIVO (200 OK) | Turbopack dev server / React 19 / Tailwind v4 |
 | **Backend (Laravel 13)** | `http://127.0.0.1:8000/api` | ✅ ACTIVO (200 OK) | PHP 8.4 CLI server / SQLite / PostgreSQL Ready |
-| **Pruebas Automatizadas** | PHPUnit 11 | ✅ 45/45 VERDE | Cobertura integral de gobernanza, concurrencia y settings |
+| **Pruebas Automatizadas** | PHPUnit 11 | ✅ 47/47 VERDE | Cobertura integral de nómina, gobernanza, concurrencia y settings |
 | **Tipado TypeScript** | `tsc --noEmit` | ✅ 0 ERRORES | Compatible con contratos DTO y recursos API |
 
 ---
